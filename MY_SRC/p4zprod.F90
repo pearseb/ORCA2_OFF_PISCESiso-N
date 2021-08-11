@@ -37,6 +37,7 @@ MODULE p4zprod
    REAL(wp), PUBLIC ::   fecnm        !:
    REAL(wp), PUBLIC ::   fecdm        !:
    REAL(wp), PUBLIC ::   grosip       !:
+   REAL(wp), PUBLIC ::   relno3max    !:
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   quotan   !: proxy of N quota in Nanophyto
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   quotad   !: proxy of N quota in diatomee
@@ -81,6 +82,8 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprorcan, zprorcad, zprofed, zprofen
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprono3n, zprono3d
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprono2n, zprono2d
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zrelno3n, zrelno3d  ! release of nitrate after uptake of nitrate
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zreluptn, zreluptd  ! release of nitrate : gross uptake of nitrate
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zmxl_fac, zmxl_chl
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zpligprod1, zpligprod2
       !!---------------------------------------------------------------------
@@ -93,6 +96,8 @@ CONTAINS
       zprofen (:,:,:) = 0._wp ; zysopt  (:,:,:) = 0._wp
       zprono3n(:,:,:) = 0._wp ; zprono3d(:,:,:) = 0._wp ; zprdia  (:,:,:) = 0._wp
       zprono2n(:,:,:) = 0._wp ; zprono2d(:,:,:) = 0._wp 
+      zrelno3n(:,:,:) = 0._wp ; zrelno3d(:,:,:) = 0._wp 
+      zreluptn(:,:,:) = 0._wp ; zreluptd(:,:,:) = 0._wp 
       zprbio  (:,:,:) = 0._wp ; zprdch  (:,:,:) = 0._wp ; zprnch  (:,:,:) = 0._wp 
       zmxl_fac(:,:,:) = 0._wp ; zmxl_chl(:,:,:) = 0._wp 
 
@@ -247,7 +252,15 @@ CONTAINS
                   &                    + xnanonh4(ji,jj,jk) + rtrn) ) * znitrate2ton
                   zprono2n(ji,jj,jk) = zprorcan(ji,jj,jk) * ( (xnanono3(ji,jj,jk) + rtrn) / ( xnanono3(ji,jj,jk)  &
                   &                    + xnanonh4(ji,jj,jk) + rtrn) ) * (1.0 - znitrate2ton)
-                 
+
+                  ! solve nitrate release following uptake following Malerba et al. (2012) L&O (Eq 1f)
+                  zreluptn(ji,jj,jk) = relno3max * (quotan(ji,jj,jk)-0.2) ! efflux:uptake ratio (-0.2 makes quotan 0.0-->0.8)
+                  zrelno3n(ji,jj,jk) = zprono3n(ji,jj,jk) * zreluptn(ji,jj,jk) ! release of nitrate
+                  
+                  ! update the arrays 
+                  zprorcan(ji,jj,jk) = zprorcan(ji,jj,jk) - zrelno3n(ji,jj,jk)
+                  zprono3n(ji,jj,jk) = zprono3n(ji,jj,jk) - zrelno3n(ji,jj,jk)
+
                   ! iron stuff nanos
                   zratio = trb(ji,jj,jk,jpnfe) / ( trb(ji,jj,jk,jpphy) * fecnm + rtrn )
                   zmax   = MAX( 0., ( 1. - zratio ) / ABS( 1.05 - zratio ) ) 
@@ -256,12 +269,21 @@ CONTAINS
                   &             * biron(ji,jj,jk) / ( biron(ji,jj,jk) + concnfe(ji,jj,jk) )  &
                   &             * zmax * trb(ji,jj,jk,jpphy) * rfact2
 
+
                   !  production terms for diatoms (C)
                   zprorcad(ji,jj,jk) = zprdia(ji,jj,jk) * xlimdia(ji,jj,jk) * trb(ji,jj,jk,jpdia) * rfact2
                   zprono3d(ji,jj,jk) = zprorcad(ji,jj,jk) * ( (xdiatno3(ji,jj,jk) + rtrn ) / ( xdiatno3(ji,jj,jk) &
                   &                    + xdiatnh4(ji,jj,jk) + rtrn) ) * znitrate2ton
                   zprono2d(ji,jj,jk) = zprorcad(ji,jj,jk) * ( (xdiatno3(ji,jj,jk) + rtrn ) / ( xdiatno3(ji,jj,jk) &
                   &                    + xdiatnh4(ji,jj,jk) + rtrn) ) * (1.0 - znitrate2ton)
+
+                  ! solve nitrate release following uptake following Malerba et al. (2012) L&O (Eq 1f)
+                  zreluptd(ji,jj,jk) = relno3max * (quotad(ji,jj,jk)-0.2) ! efflux:uptake ratio (-0.2 makes quotan 0.0-->0.8)
+                  zrelno3d(ji,jj,jk) = zprono3d(ji,jj,jk) * zreluptd(ji,jj,jk) ! release of nitrate
+                  
+                  ! update the arrays 
+                  zprorcad(ji,jj,jk) = zprorcad(ji,jj,jk) - zrelno3d(ji,jj,jk)
+                  zprono3d(ji,jj,jk) = zprono3d(ji,jj,jk) - zrelno3d(ji,jj,jk)
 
                   ! iron stuff diatoms
                   zratio = trb(ji,jj,jk,jpdfe) / ( trb(ji,jj,jk,jpdia) * fecdm + rtrn )
@@ -382,6 +404,13 @@ CONTAINS
               !
               zw3d(:,:,:) = zprono2d(:,:,:) * zfact * tmask(:,:,:)  ! no2 primary production by diatomes
               CALL iom_put( "PPNO2D"  , zw3d )
+          ENDIF
+          IF( iom_use( "RELNO3N" ) .OR. iom_use( "RELNO3D" ) )  THEN
+              zw3d(:,:,:) = zrelno3n(:,:,:) * rno3 * zfact * tmask(:,:,:)  ! no3 release following uptake by nanophyto
+              CALL iom_put( "RELNO3N"  , zw3d )
+              !
+              zw3d(:,:,:) = zrelno3d(:,:,:) * rno3 * zfact * tmask(:,:,:)  ! no3 release following uptake by diatoms
+              CALL iom_put( "RELNO3D"  , zw3d )
           ENDIF
           IF( iom_use( "PBSi" ) )  THEN
               zw3d(:,:,:) = zprorcad(:,:,:) * zfact * tmask(:,:,:) * zysopt(:,:,:) ! biogenic silica production
@@ -504,7 +533,7 @@ CONTAINS
       INTEGER ::   ios   ! Local integer
       !
       NAMELIST/namp4zprod/ pislopen, pisloped, xadap, bresp, excretn, excretd,  &
-         &                 chlcnm, chlcdm, chlcmin, fecnm, fecdm, grosip
+         &                 chlcnm, chlcdm, chlcmin, fecnm, fecdm, grosip, relno3max
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN                         ! control print
@@ -535,6 +564,7 @@ CONTAINS
          WRITE(numout,*) '      Minimum Chl/C in diatoms                  chlcdm       =', chlcdm
          WRITE(numout,*) '      Maximum Fe/C in nanophytoplankton         fecnm        =', fecnm
          WRITE(numout,*) '      Minimum Fe/C in diatoms                   fecdm        =', fecdm
+         WRITE(numout,*) '      Maximum efflux:uptake of nitrate          relno3max    =', relno3max
       ENDIF
       !
       r1_rday   = 1._wp / rday 
