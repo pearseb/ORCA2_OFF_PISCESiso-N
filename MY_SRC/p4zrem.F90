@@ -45,6 +45,7 @@ MODULE p4zrem
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitrno2   !: NO3-->NO2 denitrification array
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitrno3   !: NO2-->N2 denitrification array
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zaltrem     !: anaerobic remin without O2, NO3 or NO2
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zanammox    !: anammox array (NH4+NO2-->N2)
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -158,8 +159,12 @@ CONTAINS
                   tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) - zolimi(ji,jj,jk) - denitr(ji,jj,jk) - zaltrem(ji,jj,jk)
                   tra(ji,jj,jk,jpoxy) = tra(ji,jj,jk,jpoxy) - zolimi(ji,jj,jk) * o2ut
                   tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) + zolimi(ji,jj,jk) + denitr(ji,jj,jk) + zaltrem(ji,jj,jk)
-                  tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) + rno3 * ( zolimi(ji,jj,jk) + zaltrem(ji,jj,jk)    &
-                  &                     + ( rdenit + 1.) * denitrno2(ji,jj,jk) ) ! only NO2-->N2 affects alkalinity
+                  tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) +                                                &
+                  &                     rno3 * ( zolimi(ji,jj,jk) + zaltrem(ji,jj,jk + denitr(ji,jj,jk) )    &
+                  &                     + rdenit * denitrno2(ji,jj,jk) )  ! removal of NO2-->N2 increases alkalinity
+                        ! Wolf-Gladrow et al. (2007) 
+                        ! Alkalinity increases by 1 mol for every 1 mol NO3/NO2 removed
+                        ! Alkalinity decreases by 1 mol for every 1 mol NH4 removed
                END DO
             END DO
          END DO
@@ -223,17 +228,32 @@ CONTAINS
                zonitrno2(ji,jj,jk)  = nitrif * xstep * trb(ji,jj,jk,jpno2) * ( 1.- nitrfac(ji,jj,jk) )  &
                &                      / ( 1.+ emoy(ji,jj,jk) ) * ( 1. + fr_i(ji,jj) * emoy(ji,jj,jk) ) 
 
-               ! Anammox
-               zdenitnh4 = nitrif * xstep * trb(ji,jj,jk,jpnh4) * nitrfac(ji,jj,jk)
-               zdenitnh4 = MIN(  ( trb(ji,jj,jk,jpno3) - rtrn ) / rdenita, zdenitnh4 ) 
+               ! Loss of NH4 and NO2 due to anammox (currently considered as nitrification under anaerobic conditions)
+               ! ----------------------------------------------------------
+               zanammox(ji,jj,jk) = nitrif * xstep * trb(ji,jj,jk,jpnh4) * nitrfac(ji,jj,jk)
+               zanammox(ji,jj,jk) = max(0.0, min(  ( trb(ji,jj,jk,jpno2) - rtrn ) / 1.3, zanammox(ji,jj,jk) ) ) 
+                        ! 1.3 mol of NO2 required per mol of NH4 oxidised by anammox (Brunner et al., 2013 PNAS)
+
+               ! Make sure that the multiple sources and sinks of nitrite are not removing more NO2 than is available
+               ! and if so, reduce nitrification and anammox by equal proportions (ignores denitrification above)
+               ! ----------------------------------------------------------
+               zfact = max(0.0, min(1.0, (trb(ji,jj,jk,jpno2) + tra(ji,jj,jk,jpno2) - rtrn) /  &
+               &                         (zonitrno2(ji,jj,jk) + zanammox(ji,jj,jk)*1.3 + rtrn) ) )
+               zonitrno2(ji,jj,jk) = zonitrno2(ji,jj,jk) * zfact
+               zanammox(ji,jj,jk) = zanammox(ji,jj,jk) * zfact
 
                ! Update of the tracers trends
                ! ----------------------------
-               tra(ji,jj,jk,jpnh4) = tra(ji,jj,jk,jpnh4) - zonitrnh4(ji,jj,jk) - zdenitnh4
-               tra(ji,jj,jk,jpno2) = tra(ji,jj,jk,jpno2) + zonitrnh4(ji,jj,jk) - zonitrno2(ji,jj,jk)
-               tra(ji,jj,jk,jpno3) = tra(ji,jj,jk,jpno3) + zonitrno2(ji,jj,jk) - rdenita * zdenitnh4
+               tra(ji,jj,jk,jpnh4) = tra(ji,jj,jk,jpnh4) - zonitrnh4(ji,jj,jk) - zanammox(ji,jj,jk)
+               tra(ji,jj,jk,jpno2) = tra(ji,jj,jk,jpno2) + zonitrnh4(ji,jj,jk) - zonitrno2(ji,jj,jk) - zanammox(ji,jj,jk)*1.3
+               tra(ji,jj,jk,jpno3) = tra(ji,jj,jk,jpno3) + zonitrno2(ji,jj,jk) + zanammox(ji,jj,jk)*0.3
                tra(ji,jj,jk,jpoxy) = tra(ji,jj,jk,jpoxy) - zonitrnh4(ji,jj,jk)*o2nit*(3./4) - zonitrno2(ji,jj,jk)*o2nit*(1./4)
-               tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) - 2 * rno3 * zonitrnh4(ji,jj,jk) + rno3 * ( rdenita - 1. ) * zdenitnh4
+               tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) - 2*rno3*zonitrnh4(ji,jj,jk)
+                        ! Wolf-Gladrow et al. (2007) 
+                        ! Alkalinity increases by 1 mol for every 1 mol NO3/NO2 removed
+                        ! Alkalinity decreases by 1 mol for every 1 mol NH4 removed
+                        ! ammonia-oxidation removes two mol Alk because -1 NH4, +1 NO2 = -1 Alk, -1 Alk
+                        ! Anammox has no net effect because -1 NH4, -1.3 NO3 and +0.3 NO3 = -1 Alk, +1.3 Alk, -0.3 Alk
             END DO
          END DO
       END DO
@@ -330,6 +350,10 @@ CONTAINS
               zw3d(:,:,:) = denitrno2(:,:,:) * rdenit * rno3 * tmask(:,:,:) * zfact ! Denitrification
               CALL iom_put( "DENITNO2"  , zw3d )
           ENDIF
+          IF( iom_use( "ANAMMOX" ) )  THEN
+              zw3d(:,:,:) = zanammox(:,:,:) * rno3 * tmask(:,:,:) * zfact ! Denitrification
+              CALL iom_put( "ANAMMOX"  , zw3d )
+          ENDIF
           IF( iom_use( "ALTREM" ) )  THEN
               zw3d(:,:,:) = zaltrem(:,:,:) * tmask(:,:,:) * zfact ! anaerobic remin (DOC-->NH4) without O2,NO3,NO2
               CALL iom_put( "ALTREM"  , zw3d )
@@ -405,6 +429,7 @@ CONTAINS
       denitrno3(:,:,:) = 0._wp
       denitrno2(:,:,:) = 0._wp
       zaltrem(:,:,:) = 0._wp
+      zanammox(:,:,:) = 0._wp
       !
    END SUBROUTINE p4z_rem_init
 
@@ -414,7 +439,8 @@ CONTAINS
       !!                     ***  ROUTINE p4z_rem_alloc  ***
       !!----------------------------------------------------------------------
       ALLOCATE( zonitrnh4(jpi,jpj,jpk), zonitrno2(jpi,jpj,jpk), denitr(jpi,jpj,jpk),   &
-      &         denitrno3(jpi,jpj,jpk), denitrno2(jpi,jpj,jpk), zaltrem(jpi,jpj,jpk),  STAT=p4z_rem_alloc )
+      &         denitrno3(jpi,jpj,jpk), denitrno2(jpi,jpj,jpk), zaltrem(jpi,jpj,jpk),  &
+      &         zanammox(jpi,jpj,jpk), STAT=p4z_rem_alloc )
       !
       IF( p4z_rem_alloc /= 0 )   CALL ctl_stop( 'STOP', 'p4z_rem_alloc: failed to allocate arrays' )
       !
