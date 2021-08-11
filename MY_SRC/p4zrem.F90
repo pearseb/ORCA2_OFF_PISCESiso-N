@@ -41,7 +41,10 @@ MODULE p4zrem
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrnh4   !: ammonia oxidiation array
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrno2   !: nitrite oxidiation array
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr   !: denitrification array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr      !: total denitrification array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitrno2   !: NO3-->NO2 denitrification array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitrno3   !: NO2-->N2 denitrification array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zaltrem     !: anaerobic remin without O2, NO3 or NO2
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -64,7 +67,7 @@ CONTAINS
       REAL(wp) ::   zremik, zremikc, zremikn, zremikp, zsiremin, zfact 
       REAL(wp) ::   zsatur, zsatur2, znusil, znusil2, zdep, zdepmin, zfactdep
       REAL(wp) ::   zbactfer, zolimit, zonitr, zrfact2
-      REAL(wp) ::   zammonic, zoxyremc, zoxyremn, zoxyremp
+      REAL(wp) ::   zammonic, zoxyremc, zoxyremn, zoxyremp, znitrate2ton
       REAL(wp) ::   zosil, ztem, zdenitnh4, zolimic, zolimin, zolimip, zdenitrn, zdenitrp
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(jpi,jpj    ) :: ztempbac
@@ -112,30 +115,51 @@ CONTAINS
                   ! and a limitation term which is supposed to be a parameterization of the bacterial activity. 
                   zremik = xremik * xstep / 1.e-6 * xlimbac(ji,jj,jk) * zdepbac(ji,jj,jk) 
                   zremik = MAX( zremik, 2.74e-4 * xstep )
+
                   ! Ammonification in oxic waters with oxygen consumption
                   ! -----------------------------------------------------
                   zolimit = zremik * ( 1.- nitrfac(ji,jj,jk) ) * trb(ji,jj,jk,jpdoc) 
                   zolimi(ji,jj,jk) = MIN( ( trb(ji,jj,jk,jpoxy) - rtrn ) / o2ut, zolimit ) 
+
                   ! Ammonification in suboxic waters with denitrification
                   ! -------------------------------------------------------
-                  zammonic = zremik * nitrfac(ji,jj,jk) * trb(ji,jj,jk,jpdoc)
-                  denitr(ji,jj,jk)  = zammonic * ( 1. - nitrfac2(ji,jj,jk) )
-                  denitr(ji,jj,jk)  = MIN( ( trb(ji,jj,jk,jpno3) - rtrn ) / rdenit, denitr(ji,jj,jk) )
-                  zoxyremc          = zammonic - denitr(ji,jj,jk)
-                  !
-                  zolimi (ji,jj,jk) = MAX( 0.e0, zolimi (ji,jj,jk) )
-                  denitr (ji,jj,jk) = MAX( 0.e0, denitr (ji,jj,jk) )
-                  zoxyremc          = MAX( 0.e0, zoxyremc )
+                  zammonic = zremik * nitrfac(ji,jj,jk) * trb(ji,jj,jk,jpdoc) ! DOC remineralised by anaerobically
+                  denitr(ji,jj,jk)  = zammonic * ( 1. - nitrfac2(ji,jj,jk) ) ! anaerobic remin due to denitrification
 
-                  !
-                  tra(ji,jj,jk,jppo4) = tra(ji,jj,jk,jppo4) + zolimi (ji,jj,jk) + denitr(ji,jj,jk) + zoxyremc
-                  tra(ji,jj,jk,jpnh4) = tra(ji,jj,jk,jpnh4) + zolimi (ji,jj,jk) + denitr(ji,jj,jk) + zoxyremc
-                  tra(ji,jj,jk,jpno3) = tra(ji,jj,jk,jpno3) - denitr (ji,jj,jk) * rdenit
-                  tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) - zolimi (ji,jj,jk) - denitr(ji,jj,jk) - zoxyremc
-                  tra(ji,jj,jk,jpoxy) = tra(ji,jj,jk,jpoxy) - zolimi (ji,jj,jk) * o2ut
-                  tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) + zolimi (ji,jj,jk) + denitr(ji,jj,jk) + zoxyremc
-                  tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) + rno3 * ( zolimi(ji,jj,jk) + zoxyremc    &
-                  &                     + ( rdenit + 1.) * denitr(ji,jj,jk) )
+                  ! Do two-step denitrification
+                  ! -------------------------------------------------------
+                  znitrate2ton = ( trb(ji,jj,jk,jpno3)+rtrn ) / ( trb(ji,jj,jk,jpno3)+trb(ji,jj,jk,jpno2)+rtrn )
+                  denitrno3(ji,jj,jk) = denitr(ji,jj,jk) * znitrate2ton ! NO3 --> NO2 denitrification
+                  denitrno2(ji,jj,jk) = denitr(ji,jj,jk) * (1.0 - znitrate2ton) ! NO2 --> N2 denitrification
+                  denitrno3(ji,jj,jk)  = MIN((trb(ji,jj,jk,jpno3)-rtrn) / rdenit, denitrno3(ji,jj,jk)) ! only remove available NO3
+                  denitrno2(ji,jj,jk)  = MIN((trb(ji,jj,jk,jpno2)-rtrn) / rdenit, denitrno2(ji,jj,jk)) ! only remove available NO2
+
+                  ! anaerobic remineralisation without NO3, NO2 or O2
+                  ! -------------------------------------------------------
+                  zaltrem(ji,jj,jk) = zammonic - denitr(ji,jj,jk)
+
+                  ! make sure all arrays are positive
+                  ! -------------------------------------------------------
+                  zolimi(ji,jj,jk) = MAX( 0.e0, zolimi (ji,jj,jk) )
+                  denitrno3(ji,jj,jk) = MAX( 0.e0, denitrno3(ji,jj,jk) )
+                  denitrno2(ji,jj,jk) = MAX( 0.e0, denitrno2(ji,jj,jk) )
+                  zaltrem(ji,jj,jk) = MAX( 0.e0, zaltrem(ji,jj,jk) )
+                  
+                  ! update the full denitrification array
+                  ! -------------------------------------------------------
+                  denitr(ji,jj,jk) = denitrno3(ji,jj,jk) + denitrno2(ji,jj,jk)
+
+                  ! update the tracer arrays
+                  ! -------------------------------------------------------
+                  tra(ji,jj,jk,jppo4) = tra(ji,jj,jk,jppo4) + zolimi(ji,jj,jk) + denitr(ji,jj,jk) + zaltrem(ji,jj,jk)
+                  tra(ji,jj,jk,jpnh4) = tra(ji,jj,jk,jpnh4) + zolimi(ji,jj,jk) + denitr(ji,jj,jk) + zaltrem(ji,jj,jk)
+                  tra(ji,jj,jk,jpno2) = tra(ji,jj,jk,jpno2) - denitrno2(ji,jj,jk) * rdenit + denitrno3(ji,jj,jk) * rdenit
+                  tra(ji,jj,jk,jpno3) = tra(ji,jj,jk,jpno3) - denitrno3(ji,jj,jk) * rdenit
+                  tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) - zolimi(ji,jj,jk) - denitr(ji,jj,jk) - zaltrem(ji,jj,jk)
+                  tra(ji,jj,jk,jpoxy) = tra(ji,jj,jk,jpoxy) - zolimi(ji,jj,jk) * o2ut
+                  tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) + zolimi(ji,jj,jk) + denitr(ji,jj,jk) + zaltrem(ji,jj,jk)
+                  tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) + rno3 * ( zolimi(ji,jj,jk) + zaltrem(ji,jj,jk)    &
+                  &                     + ( rdenit + 1.) * denitrno2(ji,jj,jk) ) ! only NO2-->N2 affects alkalinity
                END DO
             END DO
          END DO
@@ -298,9 +322,17 @@ CONTAINS
               zw3d(:,:,:) = zonitrno2(:,:,:) * rno3 * tmask(:,:,:) * zfact ! 2nd step of nitrification
               CALL iom_put( "NITRNO2"  , zw3d )
           ENDIF
-          IF( iom_use( "DENIT" ) )  THEN
-              zw3d(:,:,:) = denitr(:,:,:) * rdenit * rno3 * tmask(:,:,:) * zfact ! Denitrification
-              CALL iom_put( "DENIT"  , zw3d )
+          IF( iom_use( "DENITNO3" ) )  THEN
+              zw3d(:,:,:) = denitrno3(:,:,:) * rdenit * rno3 * tmask(:,:,:) * zfact ! Denitrification
+              CALL iom_put( "DENITNO3"  , zw3d )
+          ENDIF
+          IF( iom_use( "DENITNO2" ) )  THEN
+              zw3d(:,:,:) = denitrno2(:,:,:) * rdenit * rno3 * tmask(:,:,:) * zfact ! Denitrification
+              CALL iom_put( "DENITNO2"  , zw3d )
+          ENDIF
+          IF( iom_use( "ALTREM" ) )  THEN
+              zw3d(:,:,:) = zaltrem(:,:,:) * tmask(:,:,:) * zfact ! anaerobic remin (DOC-->NH4) without O2,NO3,NO2
+              CALL iom_put( "ALTREM"  , zw3d )
           ENDIF
           IF( iom_use( "BACT" ) )  THEN
                zw3d(:,:,:) = zdepbac(:,:,:) * 1.E6 * tmask(:,:,:)  ! Bacterial biomass
@@ -370,6 +402,9 @@ CONTAINS
       zonitrnh4(:,:,:) = 0._wp
       zonitrno2(:,:,:) = 0._wp
       denitr(:,:,:) = 0._wp
+      denitrno3(:,:,:) = 0._wp
+      denitrno2(:,:,:) = 0._wp
+      zaltrem(:,:,:) = 0._wp
       !
    END SUBROUTINE p4z_rem_init
 
@@ -378,7 +413,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       !!                     ***  ROUTINE p4z_rem_alloc  ***
       !!----------------------------------------------------------------------
-      ALLOCATE( zonitrnh4(jpi,jpj,jpk), zonitrno2(jpi,jpj,jpk), denitr(jpi,jpj,jpk), STAT=p4z_rem_alloc )
+      ALLOCATE( zonitrnh4(jpi,jpj,jpk), zonitrno2(jpi,jpj,jpk), denitr(jpi,jpj,jpk),   &
+      &         denitrno3(jpi,jpj,jpk), denitrno2(jpi,jpj,jpk), zaltrem(jpi,jpj,jpk),  STAT=p4z_rem_alloc )
       !
       IF( p4z_rem_alloc /= 0 )   CALL ctl_stop( 'STOP', 'p4z_rem_alloc: failed to allocate arrays' )
       !
