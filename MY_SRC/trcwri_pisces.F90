@@ -48,6 +48,10 @@ CONTAINS
          DO jn = jp_pcs0, jp_pcs1
             zfact = 1.0e+6 
             IF( jn == jpno3 .OR. jn == jpno2 .OR. jn == jpnh4 ) zfact = rno3 * 1.0e+6 
+            IF ( ln_n15 ) THEN
+               IF( jn == jp15no3 .OR. jn == jp15no2 .OR. jn == jp15nh4 ) zfact = rno3 * 1.0e+6
+            ENDIF
+
             IF( jn == jppo4  )                 zfact = po4r * 1.0e+6
             cltra = TRIM( ctrcnm(jn) )                  ! short title for tracer
             IF( iom_use( cltra ) )  CALL iom_put( cltra, trn(:,:,:,jn) * zfact )

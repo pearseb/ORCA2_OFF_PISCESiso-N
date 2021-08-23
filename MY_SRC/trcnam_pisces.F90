@@ -42,7 +42,7 @@ CONTAINS
       INTEGER :: ios, ioptio         ! Local integer
       CHARACTER(LEN=20)::   clname
       !!
-      NAMELIST/nampismod/ln_p2z, ln_p4z, ln_p5z, ln_ligand, ln_sediment
+      NAMELIST/nampismod/ln_p2z, ln_p4z, ln_p5z, ln_ligand, ln_sediment, ln_n15
       !!----------------------------------------------------------------------
 
       IF(lwp) WRITE(numout,*)
@@ -69,6 +69,7 @@ CONTAINS
          WRITE(numout,*) '      Flag to use PISCES quota    model    ln_p5z      = ', ln_p5z
          WRITE(numout,*) '      Flag to ligand                       ln_ligand   = ', ln_ligand
          WRITE(numout,*) '      Flag to use sediment                 ln_sediment = ', ln_sediment
+         WRITE(numout,*) '      Flag to use nitrogen isotopes        ln_n15      = ', ln_n15
       ENDIF
       !
       IF(lwp) THEN                         ! control print
@@ -78,6 +79,7 @@ CONTAINS
          IF( ln_p2z      )  WRITE(numout,*) '   ==>>>   LOBSTER model is used'
          IF( ln_ligand )  WRITE(numout,*) '   ==>>>   Compute remineralization/dissolution of organic ligands'
          IF( ln_sediment )  WRITE(numout,*) '   ==>>>   Sediment module is used'
+         IF( ln_n15 )  WRITE(numout,*) '   ==>>>   Nitrogen isotope module is used'
       ENDIF
     
       ioptio = 0

@@ -24,6 +24,7 @@ MODULE sms_pisces
    LOGICAL  ::  ln_p5z            !: Flag to use PISCES  quota model
    LOGICAL  ::  ln_ligand         !: Flag to enable organic ligands
    LOGICAL  ::  ln_sediment       !: Flag to enable sediment module
+   LOGICAL  ::  ln_n15            !: Flag to enable nitrogen isotope module
 
    !!*  Time variables
    INTEGER  ::   nrdttrc           !: ???
@@ -63,6 +64,8 @@ MODULE sms_pisces
    !!* restoring
    LOGICAL  ::  ln_pisdmp          !: restoring or not of nutrients to a mean value
    INTEGER  ::  nn_pisdmp          !: frequency of relaxation or not of nutrients to a mean value
+   REAL(wp) ::  nn_n15min          !: minimum possible value of d15N of NO3
+   REAL(wp) ::  nn_n15max          !: maximum possible value of d15n of NO3
 
    !!* Mass conservation
    LOGICAL  ::  ln_check_mass      !: Flag to check mass conservation
