@@ -38,6 +38,14 @@ MODULE p4zrem
    REAL(wp), PUBLIC ::   xsilab     !: fraction of labile biogenic silica 
    REAL(wp), PUBLIC ::   feratb     !: Fe/C quota in bacteria
    REAL(wp), PUBLIC ::   xkferb     !: Half-saturation constant for bacteria Fe/C
+   REAL(wp), PUBLIC ::   mu_aoa     !: Growth rate of ammonia-oxidising archaea
+   REAL(wp), PUBLIC ::   kaoanh4    !: NH4 half-saturation constant for ammonia-oxidising archaea 
+   REAL(wp), PUBLIC ::   kaoafer    !: Fer half-saturation constant for ammonia-oxidising archaea 
+   REAL(wp), PUBLIC ::   mu_nob     !: Growth rate of nitrite-oxidising bacteria
+   REAL(wp), PUBLIC ::   knobno2    !: NO2 half-saturation constant for nitrite-oxidising bacteria
+   REAL(wp), PUBLIC ::   knobfer    !: Fer half-saturation constant for nitrite-oxidising bacteria
+  
+   LOGICAL , PUBLIC ::   ln_newnitr !: New nitrification parameterisation
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrnh4   !: ammonia oxidiation array
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrno2   !: nitrite oxidiation array
@@ -70,6 +78,7 @@ CONTAINS
       REAL(wp) ::   zbactfer, zolimit, zonitr, zrfact2
       REAL(wp) ::   zammonic, zoxyremc, zoxyremn, zoxyremp, znitrate2ton
       REAL(wp) ::   zosil, ztem, zdenitnh4, zolimic, zolimin, zolimip, zdenitrn, zdenitrp
+      REAL(wp) ::   znh3, zlimaoan, zlimaoaf, zlimnobn, zlimnobf
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(jpi,jpj    ) :: ztempbac
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zdepbac, zolimi, zdepprod, zfacsi, zfacsib, zdepeff, zfebact
@@ -227,6 +236,19 @@ CONTAINS
                &                      / ( 1.+ emoy(ji,jj,jk) ) * ( 1. + fr_i(ji,jj) * emoy(ji,jj,jk) ) 
                zonitrno2(ji,jj,jk)  = nitrif * xstep * trb(ji,jj,jk,jpno2) * ( 1.- nitrfac(ji,jj,jk) )  &
                &                      / ( 1.+ emoy(ji,jj,jk) ) * ( 1. + fr_i(ji,jj) * emoy(ji,jj,jk) ) 
+
+               ! New nitrification parameterisations
+               if ( ln_newnitr ) then
+                 ! Ammonia oxidation
+                 !znh3 = trb(ji,jj,jk,jpnh4) * 10**( hi(ji,jj,jk) - 9.3) 
+                 zlimaoan = (trb(ji,jj,jk,jpnh4)+rtrn) / ( trb(ji,jj,jk,jpnh4) + kaoanh4 + rtrn)
+                 zlimaoaf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + kaoafer + rtrn)
+                 zonitrnh4(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4) * min(zlimaoan, zlimaoaf) * (1. - nitrfac(ji,jj,jk))
+                 ! Nitrite oxidation
+                 zlimnobn = (trb(ji,jj,jk,jpno2)+rtrn) / ( trb(ji,jj,jk,jpno2) + knobno2 + rtrn)
+                 zlimnobf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + knobfer + rtrn)
+                 zonitrno2(ji,jj,jk) = mu_nob * xstep * trb(ji,jj,jk,jpno2) * min(zlimnobn,zlimnobf)
+               endif
 
                ! Loss of NH4 and NO2 due to anammox (currently considered as nitrification under anaerobic conditions)
                ! ----------------------------------------------------------
@@ -387,8 +409,9 @@ CONTAINS
       !! ** input   :   Namelist nampisrem
       !!
       !!----------------------------------------------------------------------
-      NAMELIST/nampisrem/ xremik, nitrif, xsirem, xsiremlab, xsilab, feratb, xkferb, & 
-         &                xremikc, xremikn, xremikp
+      NAMELIST/nampisrem/ xremik, nitrif, xsirem, xsiremlab, xsilab, feratb, xkferb,   & 
+         &                xremikc, xremikn, xremikp, mu_aoa, kaoanh4, kaoafer, mu_nob, &
+         &                knobno2, knobfer, ln_newnitr
       INTEGER :: ios                 ! Local integer output status for namelist read
       !!----------------------------------------------------------------------
       !
@@ -421,6 +444,13 @@ CONTAINS
          WRITE(numout,*) '      NH4 nitrification rate                    nitrif    =', nitrif
          WRITE(numout,*) '      Bacterial Fe/C ratio                      feratb    =', feratb
          WRITE(numout,*) '      Half-saturation constant for bact. Fe/C   xkferb    =', xkferb
+         WRITE(numout,*) '      Growth rate of ammonia-oxidising archaea  mu_aoa    =', mu_aoa
+         WRITE(numout,*) '      NH4 half-saturation constant for AOA      kaoanh4   =', kaoanh4
+         WRITE(numout,*) '      Fer half-saturation constant for AOA      kaoafer   =', kaoafer
+         WRITE(numout,*) '      Growth rate of nitrite-oxidising bacteria mu_nob    =', mu_nob
+         WRITE(numout,*) '      NO2 half-saturation constant for NOB      knobno2   =', knobno2
+         WRITE(numout,*) '      Fer half-saturation constant for NOB      knobfer   =', knobfer
+         WRITE(numout,*) '      Logical for new nitrification param       ln_newnitr=', ln_newnitr 
       ENDIF
       !
       zonitrnh4(:,:,:) = 0._wp
