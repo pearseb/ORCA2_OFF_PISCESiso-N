@@ -44,16 +44,33 @@ MODULE p4zrem
    REAL(wp), PUBLIC ::   mu_nob     !: Growth rate of nitrite-oxidising bacteria
    REAL(wp), PUBLIC ::   knobno2    !: NO2 half-saturation constant for nitrite-oxidising bacteria
    REAL(wp), PUBLIC ::   knobfer    !: Fer half-saturation constant for nitrite-oxidising bacteria
+   REAL(wp), PUBLIC ::   e15n_nar   !: N15 fractionation due to nitrate reduction
+   REAL(wp), PUBLIC ::   e15n_nir   !: N15 fractionation due to nitrite reduction
+   REAL(wp), PUBLIC ::   e15n_amo   !: N15 fractionation due to ammonium oxidation
+   REAL(wp), PUBLIC ::   e15n_nio   !: N15 fractionation due to nitrite oxidation
+   REAL(wp), PUBLIC ::   e15n_amm   !: N15 fractionation due to ammonification [DOC-->NH4]
+   REAL(wp), PUBLIC ::   e15n_xamo  !: N15 fractionation due to ammonium oxidiation (anammox)
+   REAL(wp), PUBLIC ::   e15n_xnir  !: N15 fractionation due to nitrite reduction (anammox)
+   REAL(wp), PUBLIC ::   e15n_xnio  !: N15 fractionation due to nitrite oxidation (anammox)
   
    LOGICAL , PUBLIC ::   ln_newnitr !: New nitrification parameterisation
 
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrnh4   !: ammonia oxidiation array
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrno2   !: nitrite oxidiation array
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr      !: total denitrification array
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitrno2   !: NO3-->NO2 denitrification array
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitrno3   !: NO2-->N2 denitrification array
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zaltrem     !: anaerobic remin without O2, NO3 or NO2
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zanammox    !: anammox array (NH4+NO2-->N2)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrnh4    !: ammonia oxidiation array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrno2    !: nitrite oxidiation array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitr15nh4  !: nitrification array (NH4-->NO2)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitr15no2  !: nitrification array (NO2-->NO3)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr       !: total denitrification array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr15doc  !: denitrification array (DOC-->NH4)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitrno2    !: NO3-->NO2 denitrification array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitrno3    !: NO2-->N2 denitrification array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr15no3  !: denitrification array (NO3-->NO2)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr15no2  !: denitrification array (NO2-->N2)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zaltrem      !: anaerobic remin without O2, NO3 or NO2
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zaltrem15    !: non O2, NO3 or NO2 anoxic remin (DOC--NH4) array
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zanammox     !: anammox array (NH4+NO2-->N2)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zanammox15no2!: anammox array (NH4 + 1.3NO2 --> N2 + 0.3NO3)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zanammox15nh4!: anammox array (NH4 + 1.3NO2 --> N2 + 0.3NO3)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zanammox15no3!: anammox array (NH4 + 1.3NO2 --> N2 + 0.3NO3)
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -75,13 +92,15 @@ CONTAINS
       INTEGER  ::   ji, jj, jk
       REAL(wp) ::   zremik, zremikc, zremikn, zremikp, zsiremin, zfact 
       REAL(wp) ::   zsatur, zsatur2, znusil, znusil2, zdep, zdepmin, zfactdep
-      REAL(wp) ::   zbactfer, zolimit, zonitr, zrfact2
-      REAL(wp) ::   zammonic, zoxyremc, zoxyremn, zoxyremp, znitrate2ton
-      REAL(wp) ::   zosil, ztem, zdenitnh4, zolimic, zolimin, zolimip, zdenitrn, zdenitrp
+      REAL(wp) ::   zbactfer, zolimit, zrfact2
+      REAL(wp) ::   zammonic, zoxyremn, zoxyremp, znitrate2ton
+      REAL(wp) ::   zosil, ztem, zolimic, zolimin, zolimip, zdenitrn, zdenitrp
       REAL(wp) ::   znh3, zlimaoan, zlimaoaf, zlimnobn, zlimnobf
+      REAL(wp) ::   zr15_doc, zr15_no3, zr15_no2, zr15_nh4
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(jpi,jpj    ) :: ztempbac
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zdepbac, zolimi, zdepprod, zfacsi, zfacsib, zdepeff, zfebact
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zolimi15
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
       !!---------------------------------------------------------------------
       !
@@ -94,6 +113,11 @@ CONTAINS
       zfacsib(:,:,:)  = xsilab / ( 1.0 - xsilab )
       zfebact(:,:,:)  = 0._wp
       zfacsi(:,:,:)   = xsilab
+      zolimi(:,:,:) = 0._wp
+
+      IF ( ln_n15 ) THEN
+         zolimi15(:,:,:)  = 0._wp
+      ENDIF
 
       ! Computation of the mean phytoplankton concentration as
       ! a crude estimate of the bacterial biomass
@@ -174,6 +198,23 @@ CONTAINS
                         ! Wolf-Gladrow et al. (2007) 
                         ! Alkalinity increases by 1 mol for every 1 mol NO3/NO2 removed
                         ! Alkalinity decreases by 1 mol for every 1 mol NH4 removed
+                  IF( ln_n15) THEN
+                     ! get isotopic signatures of major tracers
+                     zr15_doc = ( (trb(ji,jj,jk,jp15doc)+rtrn) / (trb(ji,jj,jk,jpdoc)+rtrn) )
+                     zr15_no3 = ( (trb(ji,jj,jk,jp15no3)+rtrn) / (trb(ji,jj,jk,jpno3)+rtrn) )
+                     zr15_no2 = ( (trb(ji,jj,jk,jp15no2)+rtrn) / (trb(ji,jj,jk,jpno2)+rtrn) )
+                     ! save flux arrays with isotopic effects
+                     zolimi15(ji,jj,jk) = zolimi(ji,jj,jk) * ( 1.0 - e15n_amm/1000.0 ) * zr15_doc
+                     denitr15no3(ji,jj,jk) = denitrno3(ji,jj,jk) * ( 1.0 - e15n_nar/1000.0 ) * zr15_no3
+                     denitr15no2(ji,jj,jk) = denitrno2(ji,jj,jk) * ( 1.0 - e15n_nir/1000.0 ) * zr15_no2
+                     denitr15doc(ji,jj,jk) = denitr(ji,jj,jk) * ( 1.0 - e15n_amm/1000.0 ) * zr15_doc
+                     zaltrem15(ji,jj,jk) = zaltrem(ji,jj,jk) * ( 1.0 - e15n_amm/1000.0 ) * zr15_doc
+                     ! update tracer arrays with these fluxes
+                     tra(ji,jj,jk,jp15nh4) = tra(ji,jj,jk,jp15nh4) + zolimi15(ji,jj,jk) + denitr15doc(ji,jj,jk) + zaltrem15(ji,jj,jk)
+                     tra(ji,jj,jk,jp15no3) = tra(ji,jj,jk,jp15no3) - denitr15no3(ji,jj,jk) * rdenit
+                     tra(ji,jj,jk,jp15no2) = tra(ji,jj,jk,jp15no2) + denitr15no3(ji,jj,jk) * rdenit - denitr15no2(ji,jj,jk) * rdenit
+                     tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) - zolimi15(ji,jj,jk) + denitr15doc(ji,jj,jk) + zaltrem15(ji,jj,jk)
+                  ENDIF
                END DO
             END DO
          END DO
@@ -204,20 +245,20 @@ CONTAINS
                   zammonic = zremikc * nitrfac(ji,jj,jk) * trb(ji,jj,jk,jpdoc)
                   denitr(ji,jj,jk)  = zammonic * ( 1. - nitrfac2(ji,jj,jk) )
                   denitr(ji,jj,jk)  = MAX(0., MIN(  ( trb(ji,jj,jk,jpno3) - rtrn ) / rdenit, denitr(ji,jj,jk) ) )
-                  zoxyremc          = MAX(0., zammonic - denitr(ji,jj,jk))
+                  zaltrem(ji,jj,jk) = MAX(0., zammonic - denitr(ji,jj,jk))
                   zdenitrn  = zremikn * denitr(ji,jj,jk) * trb(ji,jj,jk,jpdon) / ( trb(ji,jj,jk,jpdoc) + rtrn )
                   zdenitrp  = zremikp * denitr(ji,jj,jk) * trb(ji,jj,jk,jpdop) / ( trb(ji,jj,jk,jpdoc) + rtrn )
-                  zoxyremn  = zremikn * zoxyremc * trb(ji,jj,jk,jpdon) / ( trb(ji,jj,jk,jpdoc) + rtrn )
-                  zoxyremp  = zremikp * zoxyremc * trb(ji,jj,jk,jpdop) / ( trb(ji,jj,jk,jpdoc) + rtrn )
+                  zoxyremn  = zremikn * zaltrem(ji,jj,jk) * trb(ji,jj,jk,jpdon) / ( trb(ji,jj,jk,jpdoc) + rtrn )
+                  zoxyremp  = zremikp * zaltrem(ji,jj,jk) * trb(ji,jj,jk,jpdop) / ( trb(ji,jj,jk,jpdoc) + rtrn )
 
                   tra(ji,jj,jk,jppo4) = tra(ji,jj,jk,jppo4) + zolimip + zdenitrp + zoxyremp
                   tra(ji,jj,jk,jpnh4) = tra(ji,jj,jk,jpnh4) + zolimin + zdenitrn + zoxyremn
                   tra(ji,jj,jk,jpno3) = tra(ji,jj,jk,jpno3) - denitr(ji,jj,jk) * rdenit
-                  tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) - zolimic - denitr(ji,jj,jk) - zoxyremc
+                  tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) - zolimic - denitr(ji,jj,jk) - zaltrem(ji,jj,jk)
                   tra(ji,jj,jk,jpdon) = tra(ji,jj,jk,jpdon) - zolimin - zdenitrn - zoxyremn
                   tra(ji,jj,jk,jpdop) = tra(ji,jj,jk,jpdop) - zolimip - zdenitrp - zoxyremp
                   tra(ji,jj,jk,jpoxy) = tra(ji,jj,jk,jpoxy) - zolimic * o2ut
-                  tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) + zolimic + denitr(ji,jj,jk) + zoxyremc
+                  tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) + zolimic + denitr(ji,jj,jk) + zaltrem(ji,jj,jk)
                   tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) + rno3 * ( zolimin + zoxyremn + ( rdenit + 1.) * zdenitrn )
                END DO
             END DO
@@ -276,6 +317,23 @@ CONTAINS
                         ! Alkalinity decreases by 1 mol for every 1 mol NH4 removed
                         ! ammonia-oxidation removes two mol Alk because -1 NH4, +1 NO2 = -1 Alk, -1 Alk
                         ! Anammox has no net effect because -1 NH4, -1.3 NO3 and +0.3 NO3 = -1 Alk, +1.3 Alk, -0.3 Alk
+               IF( ln_n15 ) THEN
+                  ! isotopic signatures of major tracers
+                  zr15_nh4 = ( (trb(ji,jj,jk,jp15nh4)+rtrn) / (trb(ji,jj,jk,jpnh4)+rtrn) )
+                  zr15_no2 = ( (trb(ji,jj,jk,jp15no2)+rtrn) / (trb(ji,jj,jk,jpno2)+rtrn) )
+                  zr15_no3 = ( (trb(ji,jj,jk,jp15no3)+rtrn) / (trb(ji,jj,jk,jpno3)+rtrn) )
+                  ! save fluxes
+                  zonitr15nh4(ji,jj,jk) = zonitrnh4(ji,jj,jk) * zr15_nh4 * ( 1.0 - e15n_amo/1000.0 )
+                  zonitr15no2(ji,jj,jk) = zonitrno2(ji,jj,jk) * zr15_no2 * ( 1.0 - e15n_nio/1000.0 )
+                  zanammox15nh4(ji,jj,jk) = zanammox(ji,jj,jk) * zr15_nh4 * ( 1.0 - e15n_xamo/1000.0 )
+                  zanammox15no2(ji,jj,jk) = zanammox(ji,jj,jk) * 1.3 * zr15_no2 * ( 1.0 - e15n_xnir/1000.0 )
+                  zanammox15no3(ji,jj,jk) = zanammox(ji,jj,jk) * 0.3 * zr15_no2 * ( 1.0 - e15n_xnio/1000.0 )
+                  ! update the arrays of major tracers with fluxes
+                  tra(ji,jj,jk,jp15nh4) = tra(ji,jj,jk,jp15nh4) - zonitr15nh4(ji,jj,jk) - zanammox15nh4(ji,jj,jk)
+                  tra(ji,jj,jk,jp15no2) = tra(ji,jj,jk,jp15no2) + zonitr15nh4(ji,jj,jk) - zonitr15no2(ji,jj,jk)  &
+                  &                       - zanammox15no2(ji,jj,jk)
+                  tra(ji,jj,jk,jp15no3) = tra(ji,jj,jk,jp15no3) + zonitr15no2(ji,jj,jk) + zanammox15no3(ji,jj,jk)
+               ENDIF
             END DO
          END DO
       END DO
@@ -411,7 +469,8 @@ CONTAINS
       !!----------------------------------------------------------------------
       NAMELIST/nampisrem/ xremik, nitrif, xsirem, xsiremlab, xsilab, feratb, xkferb,   & 
          &                xremikc, xremikn, xremikp, mu_aoa, kaoanh4, kaoafer, mu_nob, &
-         &                knobno2, knobfer, ln_newnitr
+         &                knobno2, knobfer, e15n_nar, e15n_nir, e15n_amo, e15n_nio,    &
+         &                e15n_amm, e15n_xamo, e15n_xnir, e15n_xnio, ln_newnitr
       INTEGER :: ios                 ! Local integer output status for namelist read
       !!----------------------------------------------------------------------
       !
@@ -450,16 +509,33 @@ CONTAINS
          WRITE(numout,*) '      Growth rate of nitrite-oxidising bacteria mu_nob    =', mu_nob
          WRITE(numout,*) '      NO2 half-saturation constant for NOB      knobno2   =', knobno2
          WRITE(numout,*) '      Fer half-saturation constant for NOB      knobfer   =', knobfer
+         WRITE(numout,*) '      N15 fractionation - nitrate reductase     e15n_nar  =', e15n_nar
+         WRITE(numout,*) '      N15 fractionation - nitrite reductase     e15n_nir  =', e15n_nir
+         WRITE(numout,*) '      N15 fractionation - ammonium oxidation    e15n_amo  =', e15n_amo
+         WRITE(numout,*) '      N15 fractionation - nitrite oxidation     e15n_nio  =', e15n_nio
+         WRITE(numout,*) '      N15 fractionation - ammonification        e15n_amm  =', e15n_amm
+         WRITE(numout,*) '      N15 fractionation - anammox NH4 oxidation e15n_xamo =', e15n_xamo
+         WRITE(numout,*) '      N15 fractionation - anammox NO2 reduction e15n_xnir =', e15n_xnir
+         WRITE(numout,*) '      N15 fractionation - anammox NO2 oxidation e15n_xnio =', e15n_xnio
          WRITE(numout,*) '      Logical for new nitrification param       ln_newnitr=', ln_newnitr 
       ENDIF
       !
       zonitrnh4(:,:,:) = 0._wp
       zonitrno2(:,:,:) = 0._wp
+      zonitr15nh4(:,:,:) = 0._wp
+      zonitr15no2(:,:,:) = 0._wp
       denitr(:,:,:) = 0._wp
+      denitr15doc(:,:,:) = 0._wp
       denitrno3(:,:,:) = 0._wp
       denitrno2(:,:,:) = 0._wp
+      denitr15no2(:,:,:) = 0._wp
+      denitr15no3(:,:,:) = 0._wp
       zaltrem(:,:,:) = 0._wp
+      zaltrem15(:,:,:) = 0._wp
       zanammox(:,:,:) = 0._wp
+      zanammox15no2(:,:,:) = 0._wp
+      zanammox15nh4(:,:,:) = 0._wp
+      zanammox15no3(:,:,:) = 0._wp
       !
    END SUBROUTINE p4z_rem_init
 
@@ -470,7 +546,12 @@ CONTAINS
       !!----------------------------------------------------------------------
       ALLOCATE( zonitrnh4(jpi,jpj,jpk), zonitrno2(jpi,jpj,jpk), denitr(jpi,jpj,jpk),   &
       &         denitrno3(jpi,jpj,jpk), denitrno2(jpi,jpj,jpk), zaltrem(jpi,jpj,jpk),  &
-      &         zanammox(jpi,jpj,jpk), STAT=p4z_rem_alloc )
+      &         zanammox(jpi,jpj,jpk),                                                 &
+      &         denitr15doc(jpi,jpj,jpk), denitr15no3(jpi,jpj,jpk),                    &
+      &         denitr15no2(jpi,jpj,jpk), zonitr15nh4(jpi,jpj,jpk),                    &
+      &         zonitr15no2(jpi,jpj,jpk), zaltrem15(jpi,jpj,jpk),                      &
+      &         zanammox15nh4(jpi,jpj,jpk), zanammox15no2(jpi,jpj,jpk),                &
+      &         zanammox15no3(jpi,jpj,jpk),                         STAT=p4z_rem_alloc )
       !
       IF( p4z_rem_alloc /= 0 )   CALL ctl_stop( 'STOP', 'p4z_rem_alloc: failed to allocate arrays' )
       !

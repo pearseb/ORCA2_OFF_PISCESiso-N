@@ -225,16 +225,16 @@ CONTAINS
          trn(:,:,:,jpno2) = bioma0
          trn(:,:,:,jpnh4) = bioma0
          IF ( ln_n15 ) THEN
-            trn(:,:,:,jp15poc) = trn(:,:,:,jppoc)
-            trn(:,:,:,jp15phy) = trn(:,:,:,jpphy)
-            trn(:,:,:,jp15zoo) = trn(:,:,:,jpzoo)
-            trn(:,:,:,jp15doc) = trn(:,:,:,jpdoc)
-            trn(:,:,:,jp15dia) = trn(:,:,:,jpdia)
-            trn(:,:,:,jp15mes) = trn(:,:,:,jpmes)
-            trn(:,:,:,jp15goc) = trn(:,:,:,jpgoc)
-            trn(:,:,:,jp15no3) = trn(:,:,:,jpno3)
-            trn(:,:,:,jp15no2) = trn(:,:,:,jpno2)
-            trn(:,:,:,jp15nh4) = trn(:,:,:,jpnh4)
+            trn(:,:,:,jp15poc) = bioma0
+            trn(:,:,:,jp15phy) = bioma0
+            trn(:,:,:,jp15zoo) = bioma0 
+            trn(:,:,:,jp15doc) = bioma0
+            trn(:,:,:,jp15dia) = bioma0
+            trn(:,:,:,jp15mes) = bioma0
+            trn(:,:,:,jp15goc) = bioma0
+            trn(:,:,:,jp15no3) = no3*1.005
+            trn(:,:,:,jp15no2) = bioma0
+            trn(:,:,:,jp15nh4) = bioma0
          ENDIF
          IF( ln_ligand) THEN
             trn(:,:,:,jplgw) = 0.6E-9

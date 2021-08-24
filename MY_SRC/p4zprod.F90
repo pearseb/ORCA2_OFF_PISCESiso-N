@@ -38,6 +38,12 @@ MODULE p4zprod
    REAL(wp), PUBLIC ::   fecdm        !:
    REAL(wp), PUBLIC ::   grosip       !:
    REAL(wp), PUBLIC ::   relno3max    !:
+   REAL(wp), PUBLIC ::   e15n_upn     !: fractionation associated with uptake across the cell membrane
+   REAL(wp), PUBLIC ::   e15n_upd     !: fractionation associated with uptake across the cell membrane
+   REAL(wp), PUBLIC ::   e15n_efn     !: fractionation associated with efflux across the cell membrane
+   REAL(wp), PUBLIC ::   e15n_efd     !: fractionation associated with efflux across the cell membrane
+   REAL(wp), PUBLIC ::   e15n_nar     !: fractionation associated with nitrate reductase enzyme
+   REAL(wp), PUBLIC ::   e15n_ama     !: fractionation associated with ammonium assimilation
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   quotan   !: proxy of N quota in Nanophyto
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   quotad   !: proxy of N quota in diatomee
@@ -72,6 +78,7 @@ CONTAINS
       REAL(wp) ::   zmxltst, zmxlday
       REAL(wp) ::   zrum, zcodel, zargu, zval, zfeup, chlcnm_n, chlcdm_n
       REAL(wp) ::   zfact, zton, znitrate2ton
+      REAL(wp) ::   zr15n_no3, zr15d_no3, zr15n_no2, zr15d_no2, zr15_nh4
       CHARACTER (len=25) :: charout
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zw2d
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
@@ -84,6 +91,11 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprono2n, zprono2d
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zrelno3n, zrelno3d  ! release of nitrate after uptake of nitrate
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zreluptn, zreluptd  ! release of nitrate : gross uptake of nitrate
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zproregn, zproregd
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprono3n15, zprono3d15
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprono2n15, zprono2d15
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zproregn15, zproregd15
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze15nno3n, ze15nno3d, ze15nnh4
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zmxl_fac, zmxl_chl
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zpligprod1, zpligprod2
       !!---------------------------------------------------------------------
@@ -98,8 +110,16 @@ CONTAINS
       zprono2n(:,:,:) = 0._wp ; zprono2d(:,:,:) = 0._wp 
       zrelno3n(:,:,:) = 0._wp ; zrelno3d(:,:,:) = 0._wp 
       zreluptn(:,:,:) = 0._wp ; zreluptd(:,:,:) = 0._wp 
+      zproregn(:,:,:) = 0._wp ; zproregd(:,:,:) = 0._wp
       zprbio  (:,:,:) = 0._wp ; zprdch  (:,:,:) = 0._wp ; zprnch  (:,:,:) = 0._wp 
       zmxl_fac(:,:,:) = 0._wp ; zmxl_chl(:,:,:) = 0._wp 
+
+      IF( ln_n15 ) THEN
+         ze15nno3n(:,:,:) = 0._wp  ; ze15nno3d(:,:,:) = 0._wp  ; ze15nnh4(:,:,:) = 0._wp
+         zprono3n15(:,:,:) = 0._wp ; zprono3d15(:,:,:) = 0._wp
+         zprono2n15(:,:,:) = 0._wp ; zprono2d15(:,:,:) = 0._wp
+         zproregn15(:,:,:) = 0._wp ; zproregd15(:,:,:) = 0._wp
+      ENDIF
 
       ! Computation of the optimal production
       zprmaxn(:,:,:) = 0.8_wp * r1_rday * tgfunc(:,:,:)
@@ -329,29 +349,82 @@ CONTAINS
          DO jj = 1, jpj
            DO ji =1 ,jpi
               IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
-                 zproreg  = zprorcan(ji,jj,jk) - zprono3n(ji,jj,jk) - zprono2n(ji,jj,jk) 
-                 zproreg2 = zprorcad(ji,jj,jk) - zprono3d(ji,jj,jk) - zprono2d(ji,jj,jk)
+                 zproregn(ji,jj,jk) = zprorcan(ji,jj,jk) - zprono3n(ji,jj,jk) - zprono2n(ji,jj,jk) 
+                 zproregd(ji,jj,jk) = zprorcad(ji,jj,jk) - zprono3d(ji,jj,jk) - zprono2d(ji,jj,jk)
                  zdocprod = excretd * zprorcad(ji,jj,jk) + excretn * zprorcan(ji,jj,jk)
                  tra(ji,jj,jk,jppo4) = tra(ji,jj,jk,jppo4) - zprorcan(ji,jj,jk) - zprorcad(ji,jj,jk)
                  tra(ji,jj,jk,jpno3) = tra(ji,jj,jk,jpno3) - zprono3n(ji,jj,jk) - zprono3d(ji,jj,jk)
                  tra(ji,jj,jk,jpno2) = tra(ji,jj,jk,jpno2) - zprono2n(ji,jj,jk) - zprono2d(ji,jj,jk)
-                 tra(ji,jj,jk,jpnh4) = tra(ji,jj,jk,jpnh4) - zproreg - zproreg2
+                 tra(ji,jj,jk,jpnh4) = tra(ji,jj,jk,jpnh4) - zproregn(ji,jj,jk) - zproregd(ji,jj,jk)
                  tra(ji,jj,jk,jpphy) = tra(ji,jj,jk,jpphy) + zprorcan(ji,jj,jk) * texcretn
                  tra(ji,jj,jk,jpnfe) = tra(ji,jj,jk,jpnfe) + zprofen(ji,jj,jk) * texcretn
                  tra(ji,jj,jk,jpdia) = tra(ji,jj,jk,jpdia) + zprorcad(ji,jj,jk) * texcretd
                  tra(ji,jj,jk,jpdfe) = tra(ji,jj,jk,jpdfe) + zprofed(ji,jj,jk) * texcretd
                  tra(ji,jj,jk,jpdsi) = tra(ji,jj,jk,jpdsi) + zprorcad(ji,jj,jk) * zysopt(ji,jj,jk) * texcretd
                  tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) + zdocprod
-                 tra(ji,jj,jk,jpoxy) = tra(ji,jj,jk,jpoxy) + o2ut * ( zproreg + zproreg2) + ( o2ut + o2nit )   &
-                 &                   * ( zprono3n(ji,jj,jk) + zprono3d(ji,jj,jk) + zprono2n(ji,jj,jk) + zprono2d(ji,jj,jk) )
+                 tra(ji,jj,jk,jpoxy) = tra(ji,jj,jk,jpoxy) + o2ut * ( zproregn(ji,jj,jk) + zproregd(ji,jj,jk))  &
+                 &                     + ( o2ut + o2nit )  * ( zprono3n(ji,jj,jk) + zprono3d(ji,jj,jk)          &
+                 &                     + zprono2n(ji,jj,jk) + zprono2d(ji,jj,jk) )
                  !
                  zfeup = texcretn * zprofen(ji,jj,jk) + texcretd * zprofed(ji,jj,jk)
                  tra(ji,jj,jk,jpfer) = tra(ji,jj,jk,jpfer) - zfeup
                  tra(ji,jj,jk,jpsil) = tra(ji,jj,jk,jpsil) - texcretd * zprorcad(ji,jj,jk) * zysopt(ji,jj,jk)
                  tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) - zprorcan(ji,jj,jk) - zprorcad(ji,jj,jk)
-                 tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) + rno3 *  &
-                 &                     ( zprono3n(ji,jj,jk) + zprono3d(ji,jj,jk) + zprono2n(ji,jj,jk) + zprono2d(ji,jj,jk) ) &
-                 &                                         - rno3 * ( zproreg + zproreg2 )
+                 tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) + rno3 * ( zprono3n(ji,jj,jk) + zprono3d(ji,jj,jk)   &
+                 &                     + zprono2n(ji,jj,jk) + zprono2d(ji,jj,jk) )                              &
+                 &                     - rno3 * ( zproregn(ji,jj,jk) + zproregd(ji,jj,jk) )
+                 IF ( ln_n15 ) THEN
+                    ! The organism-level isotope effect of nitrate assimilation is calculated following Karsh
+                    ! et al. (2012; Envir. Sci. Tech.) and Karsh et al. (2014; Geochim. et Cosmochim. Acta),
+                    ! whereby uptake across the cell membrane (e15n_up), nitrate reduction (e15n_nar), release
+                    ! across the cell membrane (e15n_ef), and the fraction of efflux to gross uptake (zrelupt)
+                    ! all contribute:
+                    ze15nno3n(ji,jj,jk) = e15n_upn + zreluptn(ji,jj,jk) * (e15n_nar - e15n_efn)
+                    ze15nno3d(ji,jj,jk) = e15n_upd + zreluptd(ji,jj,jk) * (e15n_nar - e15n_efd)
+                    ! For ammonium, we use the classic formulation of Waser et al. (1998; MEPS), which relates the
+                    ! isotope effect to the fraction of ammonium used and available (open system; Sigman & Fripiat, 2019)
+                    ze15nnh4(ji,jj,jk) = MIN(1.0, MAX(0.0, 1.0 - (zproregn(ji,jj,jk) + zproregd(ji,jj,jk) + rtrn)   &
+                    &                                             / (trb(ji,jj,jk,jpnh4) + rtrn) ) ) * e15n_ama
+                   
+                    ! Second, apply these fractionation factors to the 14N/15N ratios in the environment
+                    !    NOTE: For nitrite uptake, we only consider the fractionation associated with transport into the
+                    !    cell because we assume all that is taken up is used
+                    zr15n_no3 = ( 1.0 - ze15nno3n(ji,jj,jk) / 1000.0 )                          &
+                    &           * ( (trb(ji,jj,jk,jp15no3)+rtrn) / (trb(ji,jj,jk,jpno3)+rtrn) )
+                    zr15d_no3 = ( 1.0 - ze15nno3d(ji,jj,jk) / 1000.0 )                          &
+                    &           * ( (trb(ji,jj,jk,jp15no3)+rtrn) / (trb(ji,jj,jk,jpno3)+rtrn) )
+                    zr15n_no2 = ( 1.0 - e15n_upn / 1000.0 )                                     &
+                    &           * ( (trb(ji,jj,jk,jp15no2)+rtrn) / (trb(ji,jj,jk,jpno2)+rtrn) )
+                    zr15d_no2 = ( 1.0 - e15n_upd / 1000.0 )                                     &
+                    &           * ( (trb(ji,jj,jk,jp15no2)+rtrn) / (trb(ji,jj,jk,jpno2)+rtrn) )
+                    zr15_nh4 = ( 1.0 - ze15nnh4(ji,jj,jk) / 1000.0 )                            &
+                    &           * ( (trb(ji,jj,jk,jp15nh4)+rtrn) / (trb(ji,jj,jk,jpnh4)+rtrn) )
+
+                    ! Third, calculate isotope fluxes
+                    zprono3n15(ji,jj,jk) = zr15n_no3 * zprono3n(ji,jj,jk)
+                    zprono3d15(ji,jj,jk) = zr15d_no3 * zprono3d(ji,jj,jk)
+                    zprono2n15(ji,jj,jk) = zr15n_no2 * zprono2n(ji,jj,jk)
+                    zprono2d15(ji,jj,jk) = zr15d_no2 * zprono2d(ji,jj,jk)
+                    zproregn15(ji,jj,jk) = zr15_nh4 * zproregn(ji,jj,jk)
+                    zproregd15(ji,jj,jk) = zr15_nh4 * zproregd(ji,jj,jk)
+
+                    ! Fourth, update the isotope arrays
+                    tra(ji,jj,jk,jp15phy) = tra(ji,jj,jk,jp15phy) + zprono3n15(ji,jj,jk) * texcretn  &
+                    &                                             + zprono2n15(ji,jj,jk) * texcretn  &
+                    &                                             + zproregn15(ji,jj,jk) * texcretn
+                    tra(ji,jj,jk,jp15dia) = tra(ji,jj,jk,jp15dia) + zprono3d15(ji,jj,jk) * texcretd  &
+                    &                                             + zprono2d15(ji,jj,jk) * texcretn  &
+                    &                                             + zproregd15(ji,jj,jk) * texcretd
+                    tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) + zprono3n15(ji,jj,jk) * excretn   &
+                                                                  + zprono2n15(ji,jj,jk) * excretn   &
+                    &                                             + zproregn15(ji,jj,jk) * excretn   &
+                    &                                             + zprono3d15(ji,jj,jk) * excretd   &
+                    &                                             + zprono2d15(ji,jj,jk) * excretd   &
+                    &                                             + zproregd15(ji,jj,jk) * excretd
+                    tra(ji,jj,jk,jp15no3) = tra(ji,jj,jk,jp15no3) - zprono3n15(ji,jj,jk) - zprono3d15(ji,jj,jk)
+                    tra(ji,jj,jk,jp15no2) = tra(ji,jj,jk,jp15no2) - zprono2n15(ji,jj,jk) - zprono2d15(ji,jj,jk)
+                    tra(ji,jj,jk,jp15nh4) = tra(ji,jj,jk,jp15nh4) - zproregn15(ji,jj,jk) - zproregd15(ji,jj,jk)
+                 ENDIF
               ENDIF
            END DO
         END DO
@@ -533,7 +606,8 @@ CONTAINS
       INTEGER ::   ios   ! Local integer
       !
       NAMELIST/namp4zprod/ pislopen, pisloped, xadap, bresp, excretn, excretd,  &
-         &                 chlcnm, chlcdm, chlcmin, fecnm, fecdm, grosip, relno3max
+         &                 chlcnm, chlcdm, chlcmin, fecnm, fecdm, grosip, relno3max, &
+         &                 e15n_upn, e15n_upd, e15n_efn, e15n_efd, e15n_nar, e15n_ama
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN                         ! control print
@@ -565,6 +639,12 @@ CONTAINS
          WRITE(numout,*) '      Maximum Fe/C in nanophytoplankton         fecnm        =', fecnm
          WRITE(numout,*) '      Minimum Fe/C in diatoms                   fecdm        =', fecdm
          WRITE(numout,*) '      Maximum efflux:uptake of nitrate          relno3max    =', relno3max
+         WRITE(numout,*) '      N15 fractionation by NO3 uptake (nanos)   e15n_upn     =', e15n_upn
+         WRITE(numout,*) '      N15 fractionation by NO3 uptake (diats)   e15n_upd     =', e15n_upd
+         WRITE(numout,*) '      N15 fractionation by NO3 efflux (nanos)   e15n_efn     =', e15n_efn
+         WRITE(numout,*) '      N15 fractionation by NO3 efflux (diats)   e15n_efd     =', e15n_efd
+         WRITE(numout,*) '      N15 fractionation by nitrate reductase    e15n_nar     =', e15n_nar
+         WRITE(numout,*) '      N15 fractionation by NH4 assimilation     e15n_ama     =', e15n_ama
       ENDIF
       !
       r1_rday   = 1._wp / rday 
