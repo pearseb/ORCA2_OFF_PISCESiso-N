@@ -44,6 +44,11 @@ MODULE p4zprod
    REAL(wp), PUBLIC ::   e15n_efd     !: fractionation associated with efflux across the cell membrane
    REAL(wp), PUBLIC ::   e15n_nar     !: fractionation associated with nitrate reductase enzyme
    REAL(wp), PUBLIC ::   e15n_ama     !: fractionation associated with ammonium assimilation
+   REAL(wp), PUBLIC ::   e18o_upn     !: fractionation associated with uptake across the cell membrane
+   REAL(wp), PUBLIC ::   e18o_upd     !: fractionation associated with uptake across the cell membrane
+   REAL(wp), PUBLIC ::   e18o_efn     !: fractionation associated with efflux across the cell membrane
+   REAL(wp), PUBLIC ::   e18o_efd     !: fractionation associated with efflux across the cell membrane
+   REAL(wp), PUBLIC ::   e18o_nar     !: fractionation associated with nitrate reductase enzyme
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   quotan   !: proxy of N quota in Nanophyto
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   quotad   !: proxy of N quota in diatomee
@@ -79,6 +84,7 @@ CONTAINS
       REAL(wp) ::   zrum, zcodel, zargu, zval, zfeup, chlcnm_n, chlcdm_n
       REAL(wp) ::   zfact, zton, znitrate2ton
       REAL(wp) ::   zr15n_no3, zr15d_no3, zr15n_no2, zr15d_no2, zr15_nh4
+      REAL(wp) ::   zr18n_no3, zr18d_no3, zr18n_no2, zr18d_no2
       CHARACTER (len=25) :: charout
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zw2d
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
@@ -96,6 +102,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprono2n15, zprono2d15
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zproregn15, zproregd15
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze15nno3n, ze15nno3d, ze15nnh4
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze18nno3n, ze18nno3d
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zmxl_fac, zmxl_chl
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zpligprod1, zpligprod2
       !!---------------------------------------------------------------------
@@ -425,6 +432,24 @@ CONTAINS
                     tra(ji,jj,jk,jp15no2) = tra(ji,jj,jk,jp15no2) - zprono2n15(ji,jj,jk) - zprono2d15(ji,jj,jk)
                     tra(ji,jj,jk,jp15nh4) = tra(ji,jj,jk,jp15nh4) - zproregn15(ji,jj,jk) - zproregd15(ji,jj,jk)
                  ENDIF
+                 IF ( ln_o18 ) THEN
+                    ze18nno3n(ji,jj,jk) = e18o_upn + zreluptn(ji,jj,jk) * (e18o_nar - e18o_efn)
+                    ze18nno3d(ji,jj,jk) = e18o_upd + zreluptd(ji,jj,jk) * (e18o_nar - e18o_efd) 
+                   
+                    zr18n_no3 = ( 1.0 - ze18nno3n(ji,jj,jk) / 1000.0 )                          &
+                    &           * ( (trb(ji,jj,jk,jp18no3)+rtrn) / (trb(ji,jj,jk,jpno3)+rtrn) )
+                    zr18d_no3 = ( 1.0 - ze18nno3d(ji,jj,jk) / 1000.0 )                          &
+                    &           * ( (trb(ji,jj,jk,jp18no3)+rtrn) / (trb(ji,jj,jk,jpno3)+rtrn) )
+                    zr18n_no2 = ( 1.0 - e18o_upn / 1000.0 )                                     &
+                    &           * ( (trb(ji,jj,jk,jp18no2)+rtrn) / (trb(ji,jj,jk,jpno2)+rtrn) )
+                    zr18d_no2 = ( 1.0 - e18o_upd / 1000.0 )                                     &
+                    &           * ( (trb(ji,jj,jk,jp18no2)+rtrn) / (trb(ji,jj,jk,jpno2)+rtrn) )
+
+                    tra(ji,jj,jk,jp18no3) = tra(ji,jj,jk,jp18no3) - zprono3n(ji,jj,jk) * zr18n_no3 &
+                    &                                             - zprono3d(ji,jj,jk) * zr18d_no3
+                    tra(ji,jj,jk,jp18no2) = tra(ji,jj,jk,jp18no2) - zprono2n(ji,jj,jk) * zr18n_no2 &
+                    &                                             - zprono2d(ji,jj,jk) * zr18d_no2
+                 ENDIF
               ENDIF
            END DO
         END DO
@@ -607,7 +632,8 @@ CONTAINS
       !
       NAMELIST/namp4zprod/ pislopen, pisloped, xadap, bresp, excretn, excretd,  &
          &                 chlcnm, chlcdm, chlcmin, fecnm, fecdm, grosip, relno3max, &
-         &                 e15n_upn, e15n_upd, e15n_efn, e15n_efd, e15n_nar, e15n_ama
+         &                 e15n_upn, e15n_upd, e15n_efn, e15n_efd, e15n_nar, e15n_ama, &
+         &                 e18o_upn, e18o_upd, e18o_efn, e18o_efd, e18o_nar
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN                         ! control print
@@ -645,6 +671,11 @@ CONTAINS
          WRITE(numout,*) '      N15 fractionation by NO3 efflux (diats)   e15n_efd     =', e15n_efd
          WRITE(numout,*) '      N15 fractionation by nitrate reductase    e15n_nar     =', e15n_nar
          WRITE(numout,*) '      N15 fractionation by NH4 assimilation     e15n_ama     =', e15n_ama
+         WRITE(numout,*) '      O18 fractionation by NO3 uptake (nanos)   e18o_upn     =', e18o_upn
+         WRITE(numout,*) '      O18 fractionation by NO3 uptake (diats)   e18o_upd     =', e18o_upd
+         WRITE(numout,*) '      O18 fractionation by NO3 efflux (nanos)   e18o_efn     =', e18o_efn
+         WRITE(numout,*) '      O18 fractionation by NO3 efflux (diats)   e18o_efd     =', e18o_efd
+         WRITE(numout,*) '      O18 fractionation by nitrate reductase    e18o_nar     =', e18o_nar
       ENDIF
       !
       r1_rday   = 1._wp / rday 

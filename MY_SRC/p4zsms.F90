@@ -159,6 +159,12 @@ CONTAINS
             trb(:,:,:,jp15mes) = MIN(trb(:,:,:,jp15mes) , ( (nn_n15max/1000.) + 1.)*trb(:,:,:,jpmes) )
             trb(:,:,:,jp15mes) = MAX(trb(:,:,:,jp15mes) , ( (nn_n15min/1000.) + 1.)*trb(:,:,:,jpmes) )
          ENDIF
+         IF( ln_o18 ) THEN
+            trb(:,:,:,jp18no3) = MIN(trb(:,:,:,jp18no3) , ( (nn_o18max/1000.) + 1.)*trb(:,:,:,jpno3) )
+            trb(:,:,:,jp18no3) = MAX(trb(:,:,:,jp18no3) , ( (nn_o18min/1000.) + 1.)*trb(:,:,:,jpno3) )
+            trb(:,:,:,jp18no2) = MIN(trb(:,:,:,jp18no2) , ( (nn_o18max/1000.) + 1.)*trb(:,:,:,jpno2) )
+            trb(:,:,:,jp18no2) = MAX(trb(:,:,:,jp18no2) , ( (nn_o18min/1000.) + 1.)*trb(:,:,:,jpno2) )
+         ENDIF
          !
          IF( ln_top_euler ) THEN
             DO jn = jp_pcs0, jp_pcs1
@@ -213,7 +219,7 @@ CONTAINS
       NAMELIST/nampisbio/ nrdttrc, wsbio, xkmort, ferat3, wsbio2, wsbio2max, wsbio2scale,    &
          &                   ldocp, ldocz, lthet, no3rat3, po4rat3
          !
-      NAMELIST/nampisdmp/ ln_pisdmp, nn_pisdmp, nn_n15min, nn_n15max
+      NAMELIST/nampisdmp/ ln_pisdmp, nn_pisdmp, nn_n15min, nn_n15max, nn_o18min, nn_o18max
       NAMELIST/nampismass/ ln_check_mass
       !!----------------------------------------------------------------------
       !
@@ -269,6 +275,8 @@ CONTAINS
          WRITE(numout,*) '      Frequency of Relaxation                     nn_pisdmp =', nn_pisdmp
          WRITE(numout,*) '      Minimum possible value of d15N              nn_n15min =', nn_n15min
          WRITE(numout,*) '      Maximum possible value of d15N              nn_n15max =', nn_n15max
+         WRITE(numout,*) '      Minimum possible value of d18O              nn_o18min =', nn_o18min
+         WRITE(numout,*) '      Maximum possible value of d18O              nn_o18max =', nn_o18max
       ENDIF
 
       REWIND( numnatp_ref )              ! Namelist nampismass in reference namelist : Pisces mass conservation check
@@ -403,6 +411,9 @@ CONTAINS
             IF ( ln_n15 ) THEN
                trn(:,:,:,jp15no3) = trn(:,:,:,jp15no3) * no3mean / zno3sumn
             ENDIF
+            IF ( ln_o18 ) THEN
+               trn(:,:,:,jp18no3) = trn(:,:,:,jp18no3) * no3mean / zno3sumn
+            ENDIF
 
             IF(lwp) WRITE(numout,*) '       SiO3N mean : ', zsilsumn
             trn(:,:,:,jpsil) = MIN( 400.e-6,trn(:,:,:,jpsil) * silmean / zsilsumn )
@@ -425,6 +436,9 @@ CONTAINS
                trb(:,:,:,jpno3) = trb(:,:,:,jpno3) * no3mean / zno3sumb
                IF ( ln_n15 ) THEN
                   trb(:,:,:,jp15no3) = trb(:,:,:,jp15no3) * no3mean / zno3sumn
+               ENDIF
+               IF ( ln_o18 ) THEN
+                  trb(:,:,:,jp18no3) = trb(:,:,:,jp18no3) * no3mean / zno3sumn
                ENDIF
 
                IF(lwp) WRITE(numout,*) '       SiO3B mean : ', zsilsumb

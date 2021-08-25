@@ -41,8 +41,11 @@ MODULE p4zsbc
    REAL(wp), PUBLIC ::   e15n_ben     !: N15 fractionation - Benthic denitrification
    REAL(wp), PUBLIC ::   e15n_amm     !: N15 fractionation - ammonification
    REAL(wp), PUBLIC ::   d15n_fix     !: delta15N signature of N2 fixation
-   REAL(wp), PUBLIC ::   d15n_riv     !: delta15N signature of river input
+   REAL(wp), PUBLIC ::   d15n_riv     !: delta15N signature of NO3 river input
    REAL(wp), PUBLIC ::   d15n_dep     !: delta15N signature of atmospheric deposition
+   REAL(wp), PUBLIC ::   e18o_ben     !: O18 fractionation - Benthic denitrification
+   REAL(wp), PUBLIC ::   d18o_riv     !: delta18O signature of NO3 river input
+   REAL(wp), PUBLIC ::   d18o_dep     !: delta18O signature of atmospheric deposition
 
    LOGICAL , PUBLIC ::   ll_sbc
    LOGICAL          ::   ll_solub
@@ -226,7 +229,8 @@ CONTAINS
         &                sn_riverdip, sn_riverdop, sn_riverdsi, sn_ndepo, sn_ironsed, sn_hydrofe, &
         &                ln_dust, ln_solub, ln_river, ln_ndepo, ln_ironsed, ln_ironice, ln_hydrofe,    &
         &                sedfeinput, distcoast, dustsolub, icefeinput, wdust, mfrac, nitrfix, diazolight, concfediaz, &
-        &                hratio, lgw_rath, e15n_ben, e15n_amm, d15n_fix, d15n_riv, d15n_dep
+        &                hratio, lgw_rath, e15n_ben, e15n_amm, d15n_fix, d15n_riv, d15n_dep, e18o_ben, &
+        &                d18o_riv, d18o_dep
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -270,6 +274,9 @@ CONTAINS
           WRITE(numout,*) '    delta15N signature of N2 fixation            d15n_fix = ', d15n_fix
           WRITE(numout,*) '    delta15N signature of river input            d15n_riv = ', d15n_riv
           WRITE(numout,*) '    delta15N signature of atmospheric deposition d15n_dep = ', d15n_dep
+          WRITE(numout,*) '    O18 fractionation - Benthic denitrification  e18o_ben = ', e18o_ben
+          WRITE(numout,*) '    delta18O signature of river input            d18o_riv = ', d18o_riv
+          WRITE(numout,*) '    delta18O signature of atmospheric deposition d18o_dep = ', d18o_dep
       END IF
 
       IF( ln_dust .OR. ln_river .OR. ln_ndepo ) THEN   ;   ll_sbc = .TRUE.
@@ -278,13 +285,6 @@ CONTAINS
 
       IF( ln_dust .AND. ln_solub ) THEN                ;   ll_solub = .TRUE.
       ELSE                                             ;   ll_solub = .FALSE.
-      ENDIF
-
-      ! set the number of level over which river runoffs are applied 
-      ! online configuration : computed in sbcrnf
-      IF( l_offline ) THEN
-        nk_rnf(:,:) = 1
-        h_rnf (:,:) = gdept_n(:,:,1)
       ENDIF
 
       ! dust input from the atmosphere

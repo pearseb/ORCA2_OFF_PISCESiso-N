@@ -31,6 +31,7 @@ MODULE p4zsed
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: zpdenit     !: Nitrate reduction in the sediments
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: zdenrem15   !: Release of NH4 via denitrification in the sediments
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: zpdenit15   !: Nitrate reduction in the sediments
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) :: zpdenit18   !: Nitrate reduction in the sediments
 
    REAL(wp) :: r1_rday                  !: inverse of rday
    LOGICAL, SAVE :: lk_sed
@@ -60,7 +61,7 @@ CONTAINS
       REAL(wp) ::  zo2, zno3, zflx, z1pdenit
       REAL(wp) ::  zsiloss, zcaloss, zws3, zws4, zwsc, zdep
       REAL(wp) ::  zwstpoc, zwstpon, zwstpop
-      REAL(wp) ::  zwstpoc15, zr15_no3, zr15_rain
+      REAL(wp) ::  zwstpoc15, zr15_no3, zr15_rain, zr18_no3
       REAL(wp) ::  ztrfer, ztrpo4s, ztrdp, zwdust, zmudia, ztemp
       REAL(wp) ::  xdiano3, xdianh4
       !
@@ -104,6 +105,9 @@ CONTAINS
          zdenrem15(:,:,:) = 0.e0
          zpdenit15(:,:,:) = 0.e0
          zolimit15(:,:,:) = 0.e0
+      ENDIF
+      IF ( ln_o18 ) THEN
+         zpdenit18(:,:,:) = 0.e0
       ENDIF
 
       ! Iron input/uptake due to sea ice : Crude parameterization based on Lancelot et al.
@@ -185,6 +189,9 @@ CONTAINS
                      tra(ji,jj,jk,jp15no3) = tra(ji,jj,jk,jp15no3) + (1. + d15n_riv*1e-3)*rivdin(ji,jj) * rfact2
                      tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) + (1. + d15n_riv*1e-3)*rivdoc(ji,jj) * rfact2
                   ENDIF
+                  IF ( ln_o18 ) THEN
+                     tra(ji,jj,jk,jp18no3) = tra(ji,jj,jk,jp18no3) + (1. + d18o_riv*1e-3)*rivdin(ji,jj) * rfact2
+                  ENDIF
                ENDDO
             ENDDO
          ENDDO
@@ -216,6 +223,9 @@ CONTAINS
          tra(:,:,1,jptal) = tra(:,:,1,jptal) - rno3 * nitdep(:,:) * rfact2
          IF ( ln_n15 ) THEN
             tra(:,:,1,jp15no3) = tra(:,:,1,jp15no3) + (1. + d15n_dep*1e-3)*nitdep(:,:) * rfact2
+         ENDIF
+         IF ( ln_o18 ) THEN
+            tra(:,:,1,jp18no3) = tra(:,:,1,jp18no3) + (1. + d18o_dep*1e-3)*nitdep(:,:) * rfact2
          ENDIF
       ENDIF
 
@@ -404,6 +414,14 @@ CONTAINS
                   tra(ji,jj,ikt,jp15nh4) = tra(ji,jj,ikt,jp15nh4) + zdenrem15(ji,jj,ikt) + zolimit15(ji,jj,ikt)
                   tra(ji,jj,ikt,jp15no3) = tra(ji,jj,ikt,jp15no3) - rdenit * zpdenit15(ji,jj,ikt)
                ENDIF
+               IF ( ln_o18 ) THEN
+                  ! collect isotopic signatures
+                  zr18_no3 = ( (trb(ji,jj,ikt,jp18no3)+rtrn) / (trb(ji,jj,ikt,jpno3)+rtrn) )
+                  ! save isotopic fluxes
+                  zpdenit18(ji,jj,ikt) = zpdenit(ji,jj,ikt) * ( 1.0 - e18o_ben/1000.0 ) * zr18_no3
+                  ! update tracer arrays
+                  tra(ji,jj,ikt,jp18no3) = tra(ji,jj,ikt,jp18no3) - rdenit * zpdenit18(ji,jj,ikt)
+               ENDIF
             END DO
          END DO
        ENDIF
@@ -555,7 +573,8 @@ CONTAINS
       !!                     ***  ROUTINE p4z_sed_alloc  ***
       !!----------------------------------------------------------------------
       ALLOCATE( nitrpot(jpi,jpj,jpk), sdenit(jpi,jpj), zpdenit(jpi,jpj,jpk),   &
-      &         zdenrem15(jpi,jpj,jpk), zpdenit15(jpi,jpj,jpk), STAT=p4z_sed_alloc )
+      &         zdenrem15(jpi,jpj,jpk), zpdenit15(jpi,jpj,jpk),                &
+      &         zpdenit18(jpi,jpj,jpk), STAT=p4z_sed_alloc )
       !
       IF( p4z_sed_alloc /= 0 )   CALL ctl_stop( 'STOP', 'p4z_sed_alloc: failed to allocate arrays' )
       !

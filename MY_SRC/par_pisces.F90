@@ -68,6 +68,9 @@ MODULE par_pisces
    INTEGER, PUBLIC ::   jp15no2   !: 15N Nitrites Concentration
    INTEGER, PUBLIC ::   jp15nh4   !: 15N Ammonium Concentration
 
+   INTEGER, PUBLIC ::   jp18no3   !: 18O Nitrates Concentration
+   INTEGER, PUBLIC ::   jp18no2   !: 18O Nitrites Concentration
+
    !!---------------------------------------------------------------------
    !!   Default                                   No CFC geochemical model
    ! Starting/ending PISCES do-loop indices (N.B. no PISCES : jpl_pcs < jpf_pcs the do-loop are never done)

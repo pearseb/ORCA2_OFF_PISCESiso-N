@@ -178,6 +178,8 @@ CONTAINS
         IF( cltra == 'NO3_15'   )   jp15no3 = jn    !: 15N nitrates concentration
         IF( cltra == 'NO2_15'   )   jp15no2 = jn    !: 15N nitrites concentration
         IF( cltra == 'NH4_15'   )   jp15nh4 = jn    !: 15N ammonium concentration
+        IF( cltra == 'NO3_18'   )   jp18no3 = jn    !: 18O nitrates concentration
+        IF( cltra == 'NO2_18'   )   jp18no2 = jn    !: 18O nitrites concentration
       END DO
 
       CALL p4z_sms_init       !  Maint routine
@@ -232,9 +234,13 @@ CONTAINS
             trn(:,:,:,jp15dia) = bioma0
             trn(:,:,:,jp15mes) = bioma0
             trn(:,:,:,jp15goc) = bioma0
-            trn(:,:,:,jp15no3) = no3*1.005
+            trn(:,:,:,jp15no3) = no3
             trn(:,:,:,jp15no2) = bioma0
             trn(:,:,:,jp15nh4) = bioma0
+         ENDIF
+         IF ( ln_o18 ) THEN
+            trn(:,:,:,jp18no3) = no3
+            trn(:,:,:,jp18no2) = bioma0
          ENDIF
          IF( ln_ligand) THEN
             trn(:,:,:,jplgw) = 0.6E-9

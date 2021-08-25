@@ -51,6 +51,9 @@ CONTAINS
             IF ( ln_n15 ) THEN
                IF( jn == jp15no3 .OR. jn == jp15no2 .OR. jn == jp15nh4 ) zfact = rno3 * 1.0e+6
             ENDIF
+            IF ( ln_o18 ) THEN
+               IF( jn == jp18no3 .OR. jn == jp18no2 ) zfact = rno3 * 1.0e+6
+            ENDIF
 
             IF( jn == jppo4  )                 zfact = po4r * 1.0e+6
             cltra = TRIM( ctrcnm(jn) )                  ! short title for tracer
