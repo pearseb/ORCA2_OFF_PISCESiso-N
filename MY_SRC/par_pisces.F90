@@ -68,6 +68,7 @@ MODULE par_pisces
    INTEGER, PUBLIC ::   jp15no2   !: 15N Nitrites Concentration
    INTEGER, PUBLIC ::   jp15nh4   !: 15N Ammonium Concentration
 
+   INTEGER, PUBLIC ::   jp18oxy   !: 18O dissolved oxygen Concentration
    INTEGER, PUBLIC ::   jp18no3   !: 18O Nitrates Concentration
    INTEGER, PUBLIC ::   jp18no2   !: 18O Nitrites Concentration
 

@@ -39,9 +39,10 @@ MODULE p4zmicro
    REAL(wp), PUBLIC ::   unass       !: Non-assimilated part of food
    REAL(wp), PUBLIC ::   sigma1      !: Fraction of microzoo excretion as DOM 
    REAL(wp), PUBLIC ::   epsher      !: growth efficiency for grazing 1 
+   REAL(wp), PUBLIC ::   epshermin   !: minimum growth efficiency for grazing 1
    REAL(wp), PUBLIC ::   e15n_ex     !: N15 microzoo excretion fractionation
    REAL(wp), PUBLIC ::   e15n_in     !: N15 microzoo ingestion fractionation
-   REAL(wp), PUBLIC ::   epshermin   !: minimum growth efficiency for grazing 1
+   REAL(wp), PUBLIC ::   e18oxy_zoo  !: O18 microzoo respiration fractionation
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -72,6 +73,7 @@ CONTAINS
       REAL(wp) :: zgrazmf, zgrazsf, zgrazpf
       REAL(wp) :: zgrazp15, zgrazm15, zgrazsd15, zgraztotc15
       REAL(wp) :: zgrarem_15, zgrapoc_15, zgrasig_15, zgrasigex_15, zmortz_15
+      REAL(wp) :: zr18_oxy
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zgrazing1, zfezoo
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: excretion1, excretion1_15
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zw3d, zzligprod
@@ -186,6 +188,10 @@ CONTAINS
                   tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) + zgrarem_15 - zgrasig_15
                   tra(ji,jj,jk,jp15poc) = tra(ji,jj,jk,jp15poc) + zgrapoc_15 * ( 1. - e15n_in/1000.0 )
                ENDIF
+               IF( ln_o18 ) THEN
+                  zr18_oxy = ( trb(ji,jj,jk,jp18oxy) + rtrn ) / ( trb(ji,jj,jk,jpoxy) + rtrn )
+                  tra(ji,jj,jk,jp18oxy) = tra(ji,jj,jk,jp18oxy) - o2ut * zgrarsig * zr18_oxy * (1. - e18oxy_zoo/1000.)
+               ENDIF
                !   Update the arrays TRA which contain the biological sources and sinks
                !   --------------------------------------------------------------------
                zmortz = ztortz + zrespz
@@ -271,7 +277,7 @@ CONTAINS
       NAMELIST/namp4zzoo/ part, grazrat, resrat, mzrat, xprefn, xprefc, &
          &                xprefd,  xthreshdia,  xthreshphy,  xthreshpoc, &
          &                xthresh, xkgraz, epsher, epshermin, sigma1, unass, &
-         &                e15n_ex, e15n_in
+         &                e15n_ex, e15n_in, e18oxy_zoo
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -308,6 +314,7 @@ CONTAINS
          WRITE(numout,*) '      half sturation constant for grazing 1           xkgraz      =', xkgraz
          WRITE(numout,*) '      N15 microzoo excretion fractionation            e15n_ex     =', e15n_ex
          WRITE(numout,*) '      N15 microzoo ingestion fractionation            e15n_in     =', e15n_in
+         WRITE(numout,*) '      O18 microzoo respiration fractionation          e18oxy_zoo  =', e18oxy_zoo
       ENDIF
       !
    END SUBROUTINE p4z_micro_init

@@ -54,10 +54,14 @@ MODULE p4zrem
    REAL(wp), PUBLIC ::   e15n_xnio  !: N15 fractionation due to nitrite oxidation (anammox)
    REAL(wp), PUBLIC ::   e18o_nar   !: O18 fractionation due to nitrate reduction
    REAL(wp), PUBLIC ::   e18o_nir   !: O18 fractionation due to nitrite reduction
-   REAL(wp), PUBLIC ::   e18o_amo   !: O18 fractionation due to ammonium oxidation
-   REAL(wp), PUBLIC ::   e18o_nio   !: O18 fractionation due to nitrite oxidation
+   REAL(wp), PUBLIC ::   e18o_o2_h2o!: O18 fractionation due to oxygen incorportation from O2 and H2O
+   REAL(wp), PUBLIC ::   e18o_h2o_2 !: O18 fractionation due to oxygen incorportation from H2O (nitrite oxidation)
    REAL(wp), PUBLIC ::   e18o_xnir  !: O18 fractionation due to nitrite reduction (anammox)
    REAL(wp), PUBLIC ::   e18o_xnio  !: O18 fractionation due to nitrite oxidation (anammox)
+   REAL(wp), PUBLIC ::   e18oxy_res !: O18 fractionation (O2) due to aerobic respiration
+   REAL(wp), PUBLIC ::   e18oxy_amo !: O18 fractionation (O2) due to ammonium oxidation
+   REAL(wp), PUBLIC ::   e18oxy_nio !: O18 fractionation (O2) due to nitrite oxidation
+   REAL(wp), PUBLIC ::   fb_h2ono2  !: fraction of biotic oxygen atom exchange between nitrite and water
   
    LOGICAL , PUBLIC ::   ln_newnitr !: New nitrification parameterisation
 
@@ -67,6 +71,7 @@ MODULE p4zrem
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitr15no2  !: nitrification array (NO2-->NO3)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitr18nh4  !: nitrification array (NH4-->NO2)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitr18no2  !: nitrification array (NO2-->NO3)
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zabiox18no2  !: abiotic exchange of oxygen atoms (NO2<-->H2O)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr       !: total denitrification array
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitr15doc  !: denitrification array (DOC-->NH4)
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   denitrno2    !: NO3-->NO2 denitrification array
@@ -109,7 +114,8 @@ CONTAINS
       REAL(wp) ::   zosil, ztem, zolimic, zolimin, zolimip, zdenitrn, zdenitrp
       REAL(wp) ::   znh3, zlimaoan, zlimaoaf, zlimnobn, zlimnobf
       REAL(wp) ::   zr15_doc, zr15_no3, zr15_no2, zr15_nh4
-      REAL(wp) ::   zr18_no3, zr18_no2
+      REAL(wp) ::   zr18_no3, zr18_no2, zr18_oxy
+      REAL(wp) ::   d18Oh2o, tk, zph, k_h2ono2, e18o_eq
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(jpi,jpj    ) :: ztempbac
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zdepbac, zolimi, zdepprod, zfacsi, zfacsib, zdepeff, zfebact
@@ -230,12 +236,14 @@ CONTAINS
                   ENDIF
                   IF( ln_o18) THEN
                      ! get isotopic signatures of major tracers
+                     zr18_oxy = ( (trb(ji,jj,jk,jp18oxy)+rtrn) / (trb(ji,jj,jk,jpoxy)+rtrn) )
                      zr18_no3 = ( (trb(ji,jj,jk,jp18no3)+rtrn) / (trb(ji,jj,jk,jpno3)+rtrn) )
                      zr18_no2 = ( (trb(ji,jj,jk,jp18no2)+rtrn) / (trb(ji,jj,jk,jpno2)+rtrn) )
                      ! save flux arrays with isotopic effects
                      denitr18no3(ji,jj,jk) = denitrno3(ji,jj,jk) * ( 1.0 - e18o_nar/1000.0 ) * zr18_no3
                      denitr18no2(ji,jj,jk) = denitrno2(ji,jj,jk) * ( 1.0 - e18o_nir/1000.0 ) * zr18_no2
                      ! update tracer arrays with these fluxes
+                     tra(ji,jj,jk,jp18oxy) = tra(ji,jj,jk,jp18oxy) - zolimi(ji,jj,jk) * o2ut * ( 1. - e18oxy_res/1000. ) * zr18_oxy
                      tra(ji,jj,jk,jp18no3) = tra(ji,jj,jk,jp18no3) - denitr18no3(ji,jj,jk) * rdenit
                      tra(ji,jj,jk,jp18no2) = tra(ji,jj,jk,jp18no2) + denitr18no3(ji,jj,jk) * rdenit - denitr18no2(ji,jj,jk) * rdenit
                   ENDIF
@@ -305,7 +313,7 @@ CONTAINS
                ! New nitrification parameterisations
                if ( ln_newnitr ) then
                  ! Ammonia oxidation
-                 !znh3 = trb(ji,jj,jk,jpnh4) * 10**( hi(ji,jj,jk) - 9.3) 
+                 !znh3 = trb(ji,jj,jk,jpnh4) * 10**( (-1)*log10(hi(ji,jj,jk)) - 9.3) 
                  zlimaoan = (trb(ji,jj,jk,jpnh4)+rtrn) / ( trb(ji,jj,jk,jpnh4) + kaoanh4 + rtrn)
                  zlimaoaf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + kaoafer + rtrn)
                  zonitrnh4(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4) * min(zlimaoan, zlimaoaf) * (1. - nitrfac(ji,jj,jk))
@@ -359,17 +367,53 @@ CONTAINS
                   tra(ji,jj,jk,jp15no3) = tra(ji,jj,jk,jp15no3) + zonitr15no2(ji,jj,jk) + zanammox15no3(ji,jj,jk)
                ENDIF
                IF( ln_o18 ) THEN
+                  ! estimate d18O of seawater (coefficients from regression analysis of Legrande & Schmidt 2006 database)
+                  d18Oh2o = (0.0333*tsn(ji,jj,jk,jp_tem) + 0.424*tsn(ji,jj,jk,jp_sal) - 14.8255)
                   ! isotopic signatures of major tracers
+                  zr18_oxy = ( (trb(ji,jj,jk,jp18oxy)+rtrn) / (trb(ji,jj,jk,jpoxy)+rtrn) )
                   zr18_no2 = ( (trb(ji,jj,jk,jp18no2)+rtrn) / (trb(ji,jj,jk,jpno2)+rtrn) )
-                  zr18_no3 = ( (trb(ji,jj,jk,jp18no3)+rtrn) / (trb(ji,jj,jk,jpno3)+rtrn) )
-                  ! save fluxes
-                  zonitr18nh4(ji,jj,jk) = zonitrnh4(ji,jj,jk) * zr18_no2 * ( 1.0 - e18o_amo/1000.0 ) ! need to change
-                  zonitr18no2(ji,jj,jk) = zonitrno2(ji,jj,jk) * zr18_no2 * ( 1.0 - e18o_nio/1000.0 ) ! need to change
+
+                  !! OLD EQUATIONS
+                  !! save fluxes
+                  !zonitr18nh4(ji,jj,jk) = zonitrnh4(ji,jj,jk) * zr18_no2 * ( 1.0 - e18o_amo/1000.0 ) ! need to change
+                  !zonitr18no2(ji,jj,jk) = zonitrno2(ji,jj,jk) * zr18_no2 * ( 1.0 - e18o_nio/1000.0 )
+                  !zanammox18no2(ji,jj,jk) = zanammox(ji,jj,jk) * 1.3 * zr18_no2 * ( 1.0 - e18o_xnir/1000.0 )
+                  !zanammox18no3(ji,jj,jk) = zanammox(ji,jj,jk) * 0.3 * zr18_no2 * ( 1.0 - e18o_xnio/1000.0 )
+                  !! update the arrays of major tracers with fluxes
+                  !tra(ji,jj,jk,jp18oxy) = tra(ji,jj,jk,jp18oxy) - zr18_oxy                               &
+                  !&                       * ( zonitrnh4(ji,jj,jk)*o2nit*(3./4)*(1.0 - e18oxy_amo/1000.)  &
+                  !&                       + zonitrno2(ji,jj,jk)*o2nit*(1./4)*(1.0 - e18oxy_nio/1000.) ) 
+                  !tra(ji,jj,jk,jp18no2) = tra(ji,jj,jk,jp18no2) + zonitr18nh4(ji,jj,jk) - zonitr18no2(ji,jj,jk)  &
+                  !&                       - zanammox18no2(ji,jj,jk)
+                  !tra(ji,jj,jk,jp18no3) = tra(ji,jj,jk,jp18no3) + zonitr18no2(ji,jj,jk) + zanammox18no3(ji,jj,jk)
+ 
+                  ! NEW EQUATIONS
+                  tk = tsn(ji,jj,jk,jp_tem)+273.15
+                  zph = (-1)*log10(hi(ji,jj,jk))
+
+                  ! Calculate the abiotic exchange rate (day-1) of nitrite and water 
+                  ! and the associated equilibrium fractionation (Buchwald & Casciotti, 2013, Nat. Geo.)
+                  k_h2ono2 = max(0.0, ( -0.0166 - 1.4123*exp( -(log(tk/317.71)/0.0462)**2.0 ) )            &
+                  &          * zph + 0.1467 + 10.193*exp( -(log(tk/316.49)/0.0447)**2.0 ) ) 
+                  e18o_eq = -0.12 * tk + 48.79 
+
+                  ! Calculate the isotopic fluxes                   
+                  zonitr18nh4(ji,jj,jk) = zonitrnh4(ji,jj,jk) * (                                          &
+                  &                       ( zr18_oxy + (d18Oh2o - e18o_o2_h2o)/1000.0 ) * (1. - fb_h2ono2) &
+                  &                       + (1.0 + (d18Oh2o + e18o_eq)/1000.0) * fb_h2ono2 )
+                  zabiox18no2(ji,jj,jk) = trb(ji,jj,jk,jpno2) * k_h2ono2 * xstep * (                     & 
+                  &                       ( 1.0 + (d18Oh2o + e18o_eq)/1000. ) - zr18_no2 )
+                  zonitr18no2(ji,jj,jk) = zonitrno2(ji,jj,jk) * ( 2/3. * zr18_no2                        &
+                  &                       + 1/3. * (1.0 + (d18Oh2o - e18o_h2o_2)/1000.)  )  ! Eq 3 Casciotti et al. 2010 L&O
                   zanammox18no2(ji,jj,jk) = zanammox(ji,jj,jk) * 1.3 * zr18_no2 * ( 1.0 - e18o_xnir/1000.0 )
                   zanammox18no3(ji,jj,jk) = zanammox(ji,jj,jk) * 0.3 * zr18_no2 * ( 1.0 - e18o_xnio/1000.0 )
+
                   ! update the arrays of major tracers with fluxes
-                  tra(ji,jj,jk,jp18no2) = tra(ji,jj,jk,jp18no2) + zonitr18nh4(ji,jj,jk) - zonitr18no2(ji,jj,jk)  &
-                  &                       - zanammox18no2(ji,jj,jk)
+                  tra(ji,jj,jk,jp18oxy) = tra(ji,jj,jk,jp18oxy) - zr18_oxy                               &
+                  &                       * ( zonitrnh4(ji,jj,jk)*o2nit*(3./4)*(1.0 - e18oxy_amo/1000.)  &
+                  &                       + zonitrno2(ji,jj,jk)*o2nit*(1./4)*(1.0 - e18oxy_nio/1000.) ) 
+                  tra(ji,jj,jk,jp18no2) = tra(ji,jj,jk,jp18no2) + zonitr18nh4(ji,jj,jk) + zabiox18no2(ji,jj,jk)  &
+                  &                       - zonitr18no2(ji,jj,jk) - zanammox18no2(ji,jj,jk)
                   tra(ji,jj,jk,jp18no3) = tra(ji,jj,jk,jp18no3) + zonitr18no2(ji,jj,jk) + zanammox18no3(ji,jj,jk)
                ENDIF
             END DO
@@ -509,7 +553,8 @@ CONTAINS
          &                xremikc, xremikn, xremikp, mu_aoa, kaoanh4, kaoafer, mu_nob, &
          &                knobno2, knobfer, e15n_nar, e15n_nir, e15n_amo, e15n_nio,    &
          &                e15n_amm, e15n_xamo, e15n_xnir, e15n_xnio, e18o_nar,         &
-         &                e18o_nir, e18o_amo, e18o_nio, e18o_xnir, e18o_xnio, ln_newnitr
+         &                e18o_nir, e18o_o2_h2o, e18o_h2o_2, e18o_xnir, e18o_xnio,     & 
+         &                e18oxy_res, e18oxy_amo, e18oxy_nio, fb_h2ono2, ln_newnitr
       INTEGER :: ios                 ! Local integer output status for namelist read
       !!----------------------------------------------------------------------
       !
@@ -558,11 +603,15 @@ CONTAINS
          WRITE(numout,*) '      N15 fractionation - anammox NO2 oxidation e15n_xnio =', e15n_xnio
          WRITE(numout,*) '      O18 fractionation - nitrate reductase     e18o_nar  =', e18o_nar
          WRITE(numout,*) '      O18 fractionation - nitrite reductase     e18o_nir  =', e18o_nir
-         WRITE(numout,*) '      O18 fractionation - ammonium oxidation    e18o_amo  =', e18o_amo
-         WRITE(numout,*) '      O18 fractionation - nitrite oxidation     e18o_nio  =', e18o_nio
+         WRITE(numout,*) '      O18 fractionation - O incorp (O2+H2O)     e18o_o2_h2o =', e18o_o2_h2o
+         WRITE(numout,*) '      O18 fractionation - O incorp (H2O)        e18o_h2o_2=', e18o_h2o_2
          WRITE(numout,*) '      O18 fractionation - anammox NO2 reduction e18o_xnir =', e18o_xnir
          WRITE(numout,*) '      O18 fractionation - anammox NO2 oxidation e18o_xnio =', e18o_xnio
          WRITE(numout,*) '      Logical for new nitrification param       ln_newnitr=', ln_newnitr 
+         WRITE(numout,*) '      O18 fractionation (O2)- respiration       e18oxy_res=', e18oxy_res
+         WRITE(numout,*) '      O18 fractionation (O2)- ammonia oxidation e18oxy_amo=', e18oxy_amo
+         WRITE(numout,*) '      O18 fractionation (O2)- nitrite oxidation e18oxy_nio=', e18oxy_nio
+         WRITE(numout,*) '      fraction biotic O-atom exchange NO2-H2O   fb_h2ono2 =', fb_h2ono2
       ENDIF
       !
       zonitrnh4(:,:,:) = 0._wp
@@ -571,6 +620,7 @@ CONTAINS
       zonitr15no2(:,:,:) = 0._wp
       zonitr18nh4(:,:,:) = 0._wp
       zonitr18no2(:,:,:) = 0._wp
+      zabiox18no2(:,:,:) = 0._wp
       denitr(:,:,:) = 0._wp
       denitr15doc(:,:,:) = 0._wp
       denitrno3(:,:,:) = 0._wp
@@ -605,7 +655,7 @@ CONTAINS
       &         zonitr18no2(jpi,jpj,jpk), zonitr18nh4(jpi,jpj,jpk),                    &
       &         zanammox15nh4(jpi,jpj,jpk), zanammox15no2(jpi,jpj,jpk),                &
       &         zanammox15no3(jpi,jpj,jpk), zanammox18no2(jpi,jpj,jpk),                &
-      &         zanammox18no3(jpi,jpj,jpk),                         STAT=p4z_rem_alloc )
+      &         zanammox18no3(jpi,jpj,jpk), zabiox18no2(jpi,jpj,jpk), STAT=p4z_rem_alloc )
       !
       IF( p4z_rem_alloc /= 0 )   CALL ctl_stop( 'STOP', 'p4z_rem_alloc: failed to allocate arrays' )
       !

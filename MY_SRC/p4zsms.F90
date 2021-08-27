@@ -164,6 +164,8 @@ CONTAINS
             trb(:,:,:,jp18no3) = MAX(trb(:,:,:,jp18no3) , ( (nn_o18min/1000.) + 1.)*trb(:,:,:,jpno3) )
             trb(:,:,:,jp18no2) = MIN(trb(:,:,:,jp18no2) , ( (nn_o18max/1000.) + 1.)*trb(:,:,:,jpno2) )
             trb(:,:,:,jp18no2) = MAX(trb(:,:,:,jp18no2) , ( (nn_o18min/1000.) + 1.)*trb(:,:,:,jpno2) )
+            trb(:,:,:,jp18oxy) = MIN(trb(:,:,:,jp18oxy) , ( (nn_o18max/1000.) + 1.)*trb(:,:,:,jpoxy) )
+            trb(:,:,:,jp18oxy) = MAX(trb(:,:,:,jp18oxy) , ( (nn_o18min/1000.) + 1.)*trb(:,:,:,jpoxy) )
          ENDIF
          !
          IF( ln_top_euler ) THEN

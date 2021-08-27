@@ -61,7 +61,7 @@ CONTAINS
       REAL(wp) ::  zo2, zno3, zflx, z1pdenit
       REAL(wp) ::  zsiloss, zcaloss, zws3, zws4, zwsc, zdep
       REAL(wp) ::  zwstpoc, zwstpon, zwstpop
-      REAL(wp) ::  zwstpoc15, zr15_no3, zr15_rain, zr18_no3
+      REAL(wp) ::  zwstpoc15, zr15_no3, zr15_rain, zr18_no3, zr18_oxy, d18Oh2o
       REAL(wp) ::  ztrfer, ztrpo4s, ztrdp, zwdust, zmudia, ztemp
       REAL(wp) ::  xdiano3, xdianh4
       !
@@ -416,10 +416,12 @@ CONTAINS
                ENDIF
                IF ( ln_o18 ) THEN
                   ! collect isotopic signatures
+                  zr18_oxy = ( (trb(ji,jj,ikt,jp18oxy)+rtrn) / (trb(ji,jj,ikt,jpoxy)+rtrn) )
                   zr18_no3 = ( (trb(ji,jj,ikt,jp18no3)+rtrn) / (trb(ji,jj,ikt,jpno3)+rtrn) )
                   ! save isotopic fluxes
                   zpdenit18(ji,jj,ikt) = zpdenit(ji,jj,ikt) * ( 1.0 - e18o_ben/1000.0 ) * zr18_no3
                   ! update tracer arrays
+                  tra(ji,jj,ikt,jp18oxy) = tra(ji,jj,ikt,jp18oxy) - zolimit(ji,jj,ikt) * o2ut * zr18_oxy * (1.0 - e18oxy_ben/1000.)
                   tra(ji,jj,ikt,jp18no3) = tra(ji,jj,ikt,jp18no3) - rdenit * zpdenit18(ji,jj,ikt)
                ENDIF
             END DO
@@ -502,6 +504,12 @@ CONTAINS
                      tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) + zfact * (1. + d15n_fix*1e-3) * 1./3.
                      tra(ji,jj,jk,jp15poc) = tra(ji,jj,jk,jp15poc) + zfact * (1. + d15n_fix*1e-3) * 2./9.
                      tra(ji,jj,jk,jp15goc) = tra(ji,jj,jk,jp15goc) + zfact * (1. + d15n_fix*1e-3) * 1./9.
+                  ENDIF
+                  IF ( ln_o18 ) THEN
+                     ! estimate d18O of seawater (coefficients from regression analysis of Legrande & Schmidt 2006 database)
+                     d18Oh2o = (0.0333*tsn(ji,jj,jk,jp_tem) + 0.424*tsn(ji,jj,jk,jp_sal) - 14.8255)
+                     tra(ji,jj,jk,jp18oxy) = tra(ji,jj,jk,jp18oxy) + ( ( o2ut + o2nit ) * zfact * 2.0 / 3.0   &
+                     &                       + o2nit * zfact / 3.0 ) * (1.0 + d18Oh2o/1000.)
                   ENDIF
               END DO
             END DO 

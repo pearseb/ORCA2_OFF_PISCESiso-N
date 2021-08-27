@@ -44,6 +44,7 @@ MODULE p4zmeso
    REAL(wp), PUBLIC ::  grazflux     !: mesozoo flux feeding rate
    REAL(wp), PUBLIC ::  e15n_ex2     !: N15 mesozoo excretion fractionation
    REAL(wp), PUBLIC ::  e15n_in2     !: N15 mesozoo ingestion fractionation
+   REAL(wp), PUBLIC ::  e18oxy_mes   !: O18 mesozoo respiration fractionation
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -75,6 +76,7 @@ CONTAINS
       REAL(wp) :: zgrazn15, zgrazd15, zgrazz15, zgrazpoc15, zgrazffp15, zgrazffg15
       REAL(wp) :: zmortz15, zfrac15, zgraztotc15
       REAL(wp) :: zgrarem2_15, zgrapoc2_15, zgrasig2_15, zgrasigex2_15, zmortzgoc_15
+      REAL(wp) :: zr18_oxy
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zgrazing2, zfezoo2
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: excretion2, excretion2_15
@@ -296,6 +298,10 @@ CONTAINS
                   ! So, zgrasigex is the amount of carbon excreted to NH4 due to N content of food
                   tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) + zgrarem2_15 - zgrasig2_15
                ENDIF
+               IF ( ln_o18 ) THEN
+                  zr18_oxy = ( trb(ji,jj,jk,jp18oxy) + rtrn ) / ( trb(ji,jj,jk,jpoxy) + rtrn )
+                  tra(ji,jj,jk,jp18oxy) = tra(ji,jj,jk,jp18oxy) - o2ut * zgrarsig * zr18_oxy * (1. - e18oxy_mes/1000.)
+               ENDIF
 
                zmortz = ztortz + zrespz
                zmortzgoc = unass2 / ( 1. - epsher2 ) * ztortz + zrespz
@@ -400,7 +406,7 @@ CONTAINS
       NAMELIST/namp4zmes/ part2, grazrat2, resrat2, mzrat2, xpref2n, xpref2d, xpref2z,   &
          &                xpref2c, xthresh2dia, xthresh2phy, xthresh2zoo, xthresh2poc, &
          &                xthresh2, xkgraz2, epsher2, epsher2min, sigma2, unass2, grazflux, &
-         &                e15n_ex2, e15n_in2
+         &                e15n_ex2, e15n_in2, e18oxy_mes
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -440,6 +446,7 @@ CONTAINS
          WRITE(numout,*) '      half sturation constant for grazing 2          xkgraz2      =', xkgraz2
          WRITE(numout,*) '      N15 mesozoo excretion fractionation            e15n_ex2     =', e15n_ex2
          WRITE(numout,*) '      N15 mesozoo ingestion fractionation            e15n_in2     =', e15n_in2
+         WRITE(numout,*) '      O15 mesozoo respiration fractionation          e18oxy_mes   =', e18oxy_mes
       ENDIF
       !
    END SUBROUTINE p4z_meso_init

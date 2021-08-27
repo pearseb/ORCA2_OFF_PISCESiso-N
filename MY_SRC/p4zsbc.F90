@@ -46,6 +46,7 @@ MODULE p4zsbc
    REAL(wp), PUBLIC ::   e18o_ben     !: O18 fractionation - Benthic denitrification
    REAL(wp), PUBLIC ::   d18o_riv     !: delta18O signature of NO3 river input
    REAL(wp), PUBLIC ::   d18o_dep     !: delta18O signature of atmospheric deposition
+   REAL(wp), PUBLIC ::   e18oxy_ben   !: O18 fractionation - benthic respiration
 
    LOGICAL , PUBLIC ::   ll_sbc
    LOGICAL          ::   ll_solub
@@ -230,7 +231,7 @@ CONTAINS
         &                ln_dust, ln_solub, ln_river, ln_ndepo, ln_ironsed, ln_ironice, ln_hydrofe,    &
         &                sedfeinput, distcoast, dustsolub, icefeinput, wdust, mfrac, nitrfix, diazolight, concfediaz, &
         &                hratio, lgw_rath, e15n_ben, e15n_amm, d15n_fix, d15n_riv, d15n_dep, e18o_ben, &
-        &                d18o_riv, d18o_dep
+        &                d18o_riv, d18o_dep, e18oxy_ben
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -277,6 +278,7 @@ CONTAINS
           WRITE(numout,*) '    O18 fractionation - Benthic denitrification  e18o_ben = ', e18o_ben
           WRITE(numout,*) '    delta18O signature of river input            d18o_riv = ', d18o_riv
           WRITE(numout,*) '    delta18O signature of atmospheric deposition d18o_dep = ', d18o_dep
+          WRITE(numout,*) '    O18 fractionation - Benthic respiration      e18oxy_ben = ', e18oxy_ben
       END IF
 
       IF( ln_dust .OR. ln_river .OR. ln_ndepo ) THEN   ;   ll_sbc = .TRUE.

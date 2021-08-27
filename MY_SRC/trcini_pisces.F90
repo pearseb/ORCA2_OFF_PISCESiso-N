@@ -178,6 +178,7 @@ CONTAINS
         IF( cltra == 'NO3_15'   )   jp15no3 = jn    !: 15N nitrates concentration
         IF( cltra == 'NO2_15'   )   jp15no2 = jn    !: 15N nitrites concentration
         IF( cltra == 'NH4_15'   )   jp15nh4 = jn    !: 15N ammonium concentration
+        IF( cltra == 'O2_18'    )   jp18oxy = jn    !: 18O dissolved oxygen concentration 
         IF( cltra == 'NO3_18'   )   jp18no3 = jn    !: 18O nitrates concentration
         IF( cltra == 'NO2_18'   )   jp18no2 = jn    !: 18O nitrites concentration
       END DO
@@ -239,6 +240,7 @@ CONTAINS
             trn(:,:,:,jp15nh4) = bioma0
          ENDIF
          IF ( ln_o18 ) THEN
+            trn(:,:,:,jp18oxy) = oxyg0
             trn(:,:,:,jp18no3) = no3
             trn(:,:,:,jp18no2) = bioma0
          ENDIF

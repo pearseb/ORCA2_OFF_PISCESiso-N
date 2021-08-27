@@ -49,6 +49,7 @@ MODULE p4zprod
    REAL(wp), PUBLIC ::   e18o_efn     !: fractionation associated with efflux across the cell membrane
    REAL(wp), PUBLIC ::   e18o_efd     !: fractionation associated with efflux across the cell membrane
    REAL(wp), PUBLIC ::   e18o_nar     !: fractionation associated with nitrate reductase enzyme
+   REAL(wp), PUBLIC ::   e18oxy_pro   !: fractionation associated with photosynthetic O2 production
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   quotan   !: proxy of N quota in Nanophyto
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   quotad   !: proxy of N quota in diatomee
@@ -84,7 +85,7 @@ CONTAINS
       REAL(wp) ::   zrum, zcodel, zargu, zval, zfeup, chlcnm_n, chlcdm_n
       REAL(wp) ::   zfact, zton, znitrate2ton
       REAL(wp) ::   zr15n_no3, zr15d_no3, zr15n_no2, zr15d_no2, zr15_nh4
-      REAL(wp) ::   zr18n_no3, zr18d_no3, zr18n_no2, zr18d_no2
+      REAL(wp) ::   zr18n_no3, zr18d_no3, zr18n_no2, zr18d_no2, d18Oh2o
       CHARACTER (len=25) :: charout
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) :: zw2d
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
@@ -433,6 +434,18 @@ CONTAINS
                     tra(ji,jj,jk,jp15nh4) = tra(ji,jj,jk,jp15nh4) - zproregn15(ji,jj,jk) - zproregd15(ji,jj,jk)
                  ENDIF
                  IF ( ln_o18 ) THEN
+                    ! dissolved oxygen fractionation
+                    ! ------------------------------
+                    ! estimate d18O of seawater (coefficients from regression analysis of Legrande & Schmidt 2006 database)
+                    d18Oh2o = (0.0333*tsn(ji,jj,jk,jp_tem) + 0.424*tsn(ji,jj,jk,jp_sal) - 14.8255)
+                    ! calculate isotope signature associated with photosynthetic oxygen production
+                    !   No fractionation, takes on d18O of seawater (Guy et al. 1993 Plant Phys; Helman et al. 2005 Plant Phys)
+                    tra(ji,jj,jk,jp18oxy) = tra(ji,jj,jk,jp18oxy) + ( o2ut * ( zproregn(ji,jj,jk) + zproregd(ji,jj,jk))  &
+                    &                       + ( o2ut + o2nit )  * ( zprono3n(ji,jj,jk) + zprono3d(ji,jj,jk)              &
+                    &                       + zprono2n(ji,jj,jk) + zprono2d(ji,jj,jk) ) ) * ((d18Oh2o+e18oxy_pro)/1000. + 1.)
+
+                    ! nitrate and nitite oxygen atom fractionation
+                    ! --------------------------------------------
                     ze18nno3n(ji,jj,jk) = e18o_upn + zreluptn(ji,jj,jk) * (e18o_nar - e18o_efn)
                     ze18nno3d(ji,jj,jk) = e18o_upd + zreluptd(ji,jj,jk) * (e18o_nar - e18o_efd) 
                    
@@ -633,7 +646,7 @@ CONTAINS
       NAMELIST/namp4zprod/ pislopen, pisloped, xadap, bresp, excretn, excretd,  &
          &                 chlcnm, chlcdm, chlcmin, fecnm, fecdm, grosip, relno3max, &
          &                 e15n_upn, e15n_upd, e15n_efn, e15n_efd, e15n_nar, e15n_ama, &
-         &                 e18o_upn, e18o_upd, e18o_efn, e18o_efd, e18o_nar
+         &                 e18o_upn, e18o_upd, e18o_efn, e18o_efd, e18o_nar, e18oxy_pro
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN                         ! control print
@@ -676,6 +689,7 @@ CONTAINS
          WRITE(numout,*) '      O18 fractionation by NO3 efflux (nanos)   e18o_efn     =', e18o_efn
          WRITE(numout,*) '      O18 fractionation by NO3 efflux (diats)   e18o_efd     =', e18o_efd
          WRITE(numout,*) '      O18 fractionation by nitrate reductase    e18o_nar     =', e18o_nar
+         WRITE(numout,*) '      O18 fractionation (O2) by primary prod    e18oxy_pro   =', e18oxy_pro
       ENDIF
       !
       r1_rday   = 1._wp / rday 
