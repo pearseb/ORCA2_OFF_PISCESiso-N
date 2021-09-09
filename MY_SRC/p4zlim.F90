@@ -206,7 +206,7 @@ CONTAINS
          DO jj = 1, jpj
             DO ji = 1, jpi
                ! denitrification factor computed from O2 levels
-               nitrfac(ji,jj,jk) = MAX(  0.e0, 0.005 * ( denmin - trb(ji,jj,jk,jpoxy) )    &
+               nitrfac(ji,jj,jk) = MAX(  0.e0, 0.035 * ( denmin - trb(ji,jj,jk,jpoxy) )    &
                   &                                  / ( oxymin + trb(ji,jj,jk,jpoxy) )  )
                nitrfac(ji,jj,jk) = MIN( 1., nitrfac(ji,jj,jk) )
                !

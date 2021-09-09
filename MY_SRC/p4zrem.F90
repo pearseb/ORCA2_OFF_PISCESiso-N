@@ -44,6 +44,7 @@ MODULE p4zrem
    REAL(wp), PUBLIC ::   mu_nob     !: Growth rate of nitrite-oxidising bacteria
    REAL(wp), PUBLIC ::   knobno2    !: NO2 half-saturation constant for nitrite-oxidising bacteria
    REAL(wp), PUBLIC ::   knobfer    !: Fer half-saturation constant for nitrite-oxidising bacteria
+   REAL(wp), PUBLIC ::   ranammox   !: Maximum rate of anammox (per day)
    REAL(wp), PUBLIC ::   e15n_nar   !: N15 fractionation due to nitrate reduction
    REAL(wp), PUBLIC ::   e15n_nir   !: N15 fractionation due to nitrite reduction
    REAL(wp), PUBLIC ::   e15n_amo   !: N15 fractionation due to ammonium oxidation
@@ -56,6 +57,7 @@ MODULE p4zrem
    REAL(wp), PUBLIC ::   e18o_nir   !: O18 fractionation due to nitrite reduction
    REAL(wp), PUBLIC ::   e18o_o2_h2o!: O18 fractionation due to oxygen incorportation from O2 and H2O
    REAL(wp), PUBLIC ::   e18o_h2o_2 !: O18 fractionation due to oxygen incorportation from H2O (nitrite oxidation)
+   REAL(wp), PUBLIC ::   e18o_no2   !: O18 fractionation due to oxygen selection of N2O (nitrite oxidation)
    REAL(wp), PUBLIC ::   e18o_xnir  !: O18 fractionation due to nitrite reduction (anammox)
    REAL(wp), PUBLIC ::   e18o_xnio  !: O18 fractionation due to nitrite oxidation (anammox)
    REAL(wp), PUBLIC ::   e18oxy_res !: O18 fractionation (O2) due to aerobic respiration
@@ -232,7 +234,7 @@ CONTAINS
                      tra(ji,jj,jk,jp15nh4) = tra(ji,jj,jk,jp15nh4) + zolimi15(ji,jj,jk) + denitr15doc(ji,jj,jk) + zaltrem15(ji,jj,jk)
                      tra(ji,jj,jk,jp15no3) = tra(ji,jj,jk,jp15no3) - denitr15no3(ji,jj,jk) * rdenit
                      tra(ji,jj,jk,jp15no2) = tra(ji,jj,jk,jp15no2) + denitr15no3(ji,jj,jk) * rdenit - denitr15no2(ji,jj,jk) * rdenit
-                     tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) - zolimi15(ji,jj,jk) + denitr15doc(ji,jj,jk) + zaltrem15(ji,jj,jk)
+                     tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) - zolimi15(ji,jj,jk) - denitr15doc(ji,jj,jk) - zaltrem15(ji,jj,jk)
                   ENDIF
                   IF( ln_o18) THEN
                      ! get isotopic signatures of major tracers
@@ -313,19 +315,22 @@ CONTAINS
                ! New nitrification parameterisations
                if ( ln_newnitr ) then
                  ! Ammonia oxidation
-                 !znh3 = trb(ji,jj,jk,jpnh4) * 10**( (-1)*log10(hi(ji,jj,jk)) - 9.3) 
+                 !zph = (-1)*log10(hi(ji,jj,jk))
+                 !znh3 = min(1.0, 10**(zph - 9.3) / 10**(8.0 - 9.3) ) 
                  zlimaoan = (trb(ji,jj,jk,jpnh4)+rtrn) / ( trb(ji,jj,jk,jpnh4) + kaoanh4 + rtrn)
                  zlimaoaf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + kaoafer + rtrn)
-                 zonitrnh4(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4) * min(zlimaoan, zlimaoaf) * (1. - nitrfac(ji,jj,jk))
+                 zonitrnh4(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4) * min(zlimaoan, zlimaoaf)   &
+                 &                     * (1. - nitrfac(ji,jj,jk)) / ( 1. + emoy(ji,jj,jk) )
                  ! Nitrite oxidation
                  zlimnobn = (trb(ji,jj,jk,jpno2)+rtrn) / ( trb(ji,jj,jk,jpno2) + knobno2 + rtrn)
                  zlimnobf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + knobfer + rtrn)
-                 zonitrno2(ji,jj,jk) = mu_nob * xstep * trb(ji,jj,jk,jpno2) * min(zlimnobn,zlimnobf)
+                 zonitrno2(ji,jj,jk) = mu_nob * xstep * trb(ji,jj,jk,jpno2) * min(zlimnobn,zlimnobf)    &
+                 &                     / ( 1. + emoy(ji,jj,jk) )
                endif
 
-               ! Loss of NH4 and NO2 due to anammox (currently considered as nitrification under anaerobic conditions)
+               ! Loss of NH4 and NO2 due to anammox
                ! ----------------------------------------------------------
-               zanammox(ji,jj,jk) = nitrif * xstep * trb(ji,jj,jk,jpnh4) * nitrfac(ji,jj,jk)
+               zanammox(ji,jj,jk) = ranammox * xstep * trb(ji,jj,jk,jpnh4) * nitrfac(ji,jj,jk)
                zanammox(ji,jj,jk) = max(0.0, min(  ( trb(ji,jj,jk,jpno2) - rtrn ) / 1.3, zanammox(ji,jj,jk) ) ) 
                         ! 1.3 mol of NO2 required per mol of NH4 oxidised by anammox (Brunner et al., 2013 PNAS)
 
@@ -399,12 +404,12 @@ CONTAINS
 
                   ! Calculate the isotopic fluxes                   
                   zonitr18nh4(ji,jj,jk) = zonitrnh4(ji,jj,jk) * (                                          &
-                  &                       ( zr18_oxy + (d18Oh2o - e18o_o2_h2o)/1000.0 ) * (1. - fb_h2ono2) &
-                  &                       + (1.0 + (d18Oh2o + e18o_eq)/1000.0) * fb_h2ono2 )
-                  zabiox18no2(ji,jj,jk) = trb(ji,jj,jk,jpno2) * k_h2ono2 * xstep * (                     & 
+                  &                       0.5 * ( zr18_oxy + (1. + (d18Oh2o - e18o_o2_h2o)/1000.0 ) )      &
+                  &                       * (1. - fb_h2ono2) + (1.0 + (d18Oh2o + e18o_eq)/1000.0) * fb_h2ono2 )
+                  zabiox18no2(ji,jj,jk) = trb(ji,jj,jk,jpno2) * k_h2ono2 * xstep * (                       & 
                   &                       ( 1.0 + (d18Oh2o + e18o_eq)/1000. ) - zr18_no2 )
-                  zonitr18no2(ji,jj,jk) = zonitrno2(ji,jj,jk) * ( 2/3. * zr18_no2                        &
-                  &                       + 1/3. * (1.0 + (d18Oh2o - e18o_h2o_2)/1000.)  )  ! Eq 3 Casciotti et al. 2010 L&O
+                  zonitr18no2(ji,jj,jk) = zonitrno2(ji,jj,jk) * ( 2/3. * (zr18_no2 - e18o_no2/1000.0)      &
+                  &                       + 1/3. * (1.0 + (d18Oh2o - e18o_h2o_2)/1000.) )   ! Eq 3 Casciotti et al. 2010 L&O
                   zanammox18no2(ji,jj,jk) = zanammox(ji,jj,jk) * 1.3 * zr18_no2 * ( 1.0 - e18o_xnir/1000.0 )
                   zanammox18no3(ji,jj,jk) = zanammox(ji,jj,jk) * 0.3 * zr18_no2 * ( 1.0 - e18o_xnio/1000.0 )
 
@@ -551,10 +556,10 @@ CONTAINS
       !!----------------------------------------------------------------------
       NAMELIST/nampisrem/ xremik, nitrif, xsirem, xsiremlab, xsilab, feratb, xkferb,   & 
          &                xremikc, xremikn, xremikp, mu_aoa, kaoanh4, kaoafer, mu_nob, &
-         &                knobno2, knobfer, e15n_nar, e15n_nir, e15n_amo, e15n_nio,    &
-         &                e15n_amm, e15n_xamo, e15n_xnir, e15n_xnio, e18o_nar,         &
-         &                e18o_nir, e18o_o2_h2o, e18o_h2o_2, e18o_xnir, e18o_xnio,     & 
-         &                e18oxy_res, e18oxy_amo, e18oxy_nio, fb_h2ono2, ln_newnitr
+         &                knobno2, knobfer, ranammox, e15n_nar, e15n_nir, e15n_amo,    &
+         &                e15n_nio, e15n_amm, e15n_xamo, e15n_xnir, e15n_xnio, e18o_nar&
+         &                , e18o_nir, e18o_o2_h2o, e18o_h2o_2, e18o_no2, e18o_xnir,    & 
+         &                e18o_xnio, e18oxy_res, e18oxy_amo, e18oxy_nio, fb_h2ono2, ln_newnitr
       INTEGER :: ios                 ! Local integer output status for namelist read
       !!----------------------------------------------------------------------
       !
@@ -593,6 +598,7 @@ CONTAINS
          WRITE(numout,*) '      Growth rate of nitrite-oxidising bacteria mu_nob    =', mu_nob
          WRITE(numout,*) '      NO2 half-saturation constant for NOB      knobno2   =', knobno2
          WRITE(numout,*) '      Fer half-saturation constant for NOB      knobfer   =', knobfer
+         WRITE(numout,*) '      Max rate of anammox (per day)             ranammox  =', ranammox
          WRITE(numout,*) '      N15 fractionation - nitrate reductase     e15n_nar  =', e15n_nar
          WRITE(numout,*) '      N15 fractionation - nitrite reductase     e15n_nir  =', e15n_nir
          WRITE(numout,*) '      N15 fractionation - ammonium oxidation    e15n_amo  =', e15n_amo
@@ -605,6 +611,7 @@ CONTAINS
          WRITE(numout,*) '      O18 fractionation - nitrite reductase     e18o_nir  =', e18o_nir
          WRITE(numout,*) '      O18 fractionation - O incorp (O2+H2O)     e18o_o2_h2o =', e18o_o2_h2o
          WRITE(numout,*) '      O18 fractionation - O incorp (H2O)        e18o_h2o_2=', e18o_h2o_2
+         WRITE(numout,*) '      O18 fractionation - O selection of N2O    e18o_no2  =', e18o_no2
          WRITE(numout,*) '      O18 fractionation - anammox NO2 reduction e18o_xnir =', e18o_xnir
          WRITE(numout,*) '      O18 fractionation - anammox NO2 oxidation e18o_xnio =', e18o_xnio
          WRITE(numout,*) '      Logical for new nitrification param       ln_newnitr=', ln_newnitr 
