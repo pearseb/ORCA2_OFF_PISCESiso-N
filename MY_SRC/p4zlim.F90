@@ -39,30 +39,30 @@ MODULE p4zlim
    REAL(wp), PUBLIC ::  xksi2       !:  half saturation constant for Si/C 
    REAL(wp), PUBLIC ::  xkdoc       !:  2nd half-sat. of DOC remineralization  
    REAL(wp), PUBLIC ::  concbfe     !:  Fe half saturation for bacteria 
-   REAL(wp), PUBLIC ::  oxymin      !:  half saturation constant for anaerobic processes
-   REAL(wp), PUBLIC ::  denmin      !:  half saturation constant for anaerobic processes
+   REAL(wp), PUBLIC ::  oxymin      !:  strenght of aerobic-anaerobic transition
+   REAL(wp), PUBLIC ::  oxymax      !:  maximum oxygen concentration for anaerobic processes
    REAL(wp), PUBLIC ::  qnfelim     !:  optimal Fe quota for nanophyto
    REAL(wp), PUBLIC ::  qdfelim     !:  optimal Fe quota for diatoms
    REAL(wp), PUBLIC ::  caco3r      !:  mean rainratio 
 
    !!* Phytoplankton limitation terms
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanono3   !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatno3   !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanonh4   !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatnh4   !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanopo4   !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatpo4   !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimphy    !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimdia    !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimnfe    !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimdfe    !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimsi     !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimbac    !: ??
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimbacl   !: ??
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   concdfe    !: ???
-   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   concnfe    !: ???
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanono3   !: Nanophyto limitation by NO3
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatno3   !: Diatoms limitation by NO3
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanonh4   !: Nanophyto limitation by NH4
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatnh4   !: Diatoms limitation by NH4
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xnanopo4   !: Nanophyto limitation by PO4
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xdiatpo4   !: Diatoms limitation by PO4
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimphy    !: Nutrient limitation term of nanophytoplankton
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimdia    !: Nutrient limitation term of diatoms
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimnfe    !: Nanophyto limitation by Iron
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimdfe    !: Diatoms limitation by iron
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimsi     !: Diatoms limitation by Si
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimbac    !: Bacterial limitation term
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   xlimbacl   !: Bacterial limitation term
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   concdfe    !: Limitation of diatoms uptake of Fe
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:)  ::   concnfe    !: Limitation of Nano uptake of Fe
 
-   ! Coefficient for iron limitation
+   ! Coefficient for iron limitation following Flynn and Hipkin (1999)
    REAL(wp) ::  xcoef1   = 0.0016  / 55.85  
    REAL(wp) ::  xcoef2   = 1.21E-5 * 14. / 55.85 / 7.625 * 0.5 * 1.5
    REAL(wp) ::  xcoef3   = 1.15E-4 * 14. / 55.85 / 7.625 * 0.5 
@@ -79,9 +79,11 @@ CONTAINS
       !!                     ***  ROUTINE p4z_lim  ***
       !!
       !! ** Purpose :   Compute the co-limitations by the various nutrients
-      !!              for the various phytoplankton species
+      !!                for the various phytoplankton species
       !!
-      !! ** Method  : - ???
+      !! ** Method  : - Limitation follows the Liebieg law of the minimum
+      !!              - Monod approach for N, P and Si. Quota approach
+      !!                for Iron
       !!---------------------------------------------------------------------
       INTEGER, INTENT(in)  :: kt, knt
       !
@@ -206,8 +208,8 @@ CONTAINS
          DO jj = 1, jpj
             DO ji = 1, jpi
                ! denitrification factor computed from O2 levels
-               nitrfac(ji,jj,jk) = MAX(  0.e0, 0.035 * ( denmin - trb(ji,jj,jk,jpoxy) )    &
-                  &                                  / ( oxymin + trb(ji,jj,jk,jpoxy) )  )
+               nitrfac(ji,jj,jk) = MAX(  0.e0, 0.1 * ( oxymax - trb(ji,jj,jk,jpoxy) )    &
+                  &                                / ( oxymin * trb(ji,jj,jk,jpoxy) )  )
                nitrfac(ji,jj,jk) = MIN( 1., nitrfac(ji,jj,jk) )
                !
                ! denitrification factor computed from NO3 levels
@@ -252,7 +254,7 @@ CONTAINS
       !
       NAMELIST/namp4zlim/ concnno3, concdno3, concnnh4, concdnh4, concnfer, concdfer, concbfe,   &
          &                concbno3, concbnh4, xsizedia, xsizephy, xsizern, xsizerd,          & 
-         &                xksi1, xksi2, xkdoc, qnfelim, qdfelim, caco3r, oxymin, denmin
+         &                xksi1, xksi2, xkdoc, qnfelim, qdfelim, caco3r, oxymin, oxymax
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -288,8 +290,8 @@ CONTAINS
          WRITE(numout,*) '      Minimum size criteria for diatoms        xsizedia  = ', xsizedia
          WRITE(numout,*) '      Minimum size criteria for nanophyto      xsizephy  = ', xsizephy
          WRITE(numout,*) '      Fe half saturation for bacteria          concbfe   = ', concbfe
-         WRITE(numout,*) '      half-sat constant anaerobic processes    oxymin   =' , oxymin
-         WRITE(numout,*) '      half-sat constant anaerobic processes    denmin   =' , denmin
+         WRITE(numout,*) '      strength of anaerobic-aerobic transition oxymin    =' , oxymin
+         WRITE(numout,*) '      maximum O2 concentration for anaerobic   oxymax    =' , oxymax
          WRITE(numout,*) '      optimal Fe quota for nano.               qnfelim   = ', qnfelim
          WRITE(numout,*) '      Optimal Fe quota for diatoms             qdfelim   = ', qdfelim
       ENDIF
