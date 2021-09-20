@@ -82,7 +82,7 @@ CONTAINS
       REAL(wp) ::   zyr_dec, zdco2dt
       REAL(wp) ::   zr18_oxy
       CHARACTER (len=25) ::   charout
-      REAL(wp), DIMENSION(jpi,jpj) ::   zkgco2, zkgo2, zh2co3, zoflx,  zpco2atm  
+      REAL(wp), DIMENSION(jpi,jpj) ::   zkgco2, zkgo2, zh2co3, zoflx, zoflx2, zpco2atm  
       REAL(wp), DIMENSION(jpi,jpj) ::   zoflx18
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zw2d
       !!---------------------------------------------------------------------
@@ -173,6 +173,8 @@ CONTAINS
             zflu16 = trb(ji,jj,1,jpoxy) * zkgo2(ji,jj)
             zoflx(ji,jj) = ( zfld16 - zflu16 ) * tmask(ji,jj,1)
             tra(ji,jj,1,jpoxy) = tra(ji,jj,1,jpoxy) + zoflx(ji,jj) * rfact2 / e3t_n(ji,jj,1)
+
+            ! dissolved oxygen isotopes
             IF ( ln_o18 ) THEN
                ! isotopic signature of dissolved oxygen
                zr18_oxy = ( trb(ji,jj,1,jp18oxy) + rtrn ) / ( trb(ji,jj,1,jpoxy) + rtrn )
@@ -182,6 +184,11 @@ CONTAINS
                ! update tracer array
                tra(ji,jj,1,jp18oxy) = tra(ji,jj,1,jp18oxy) + zoflx18(ji,jj) * rfact2 / e3t_n(ji,jj,1)
             ENDIF
+
+            ! Preformed O2
+            zflu16 = trb(ji,jj,1,jpao2) * zkgo2(ji,jj)
+            zoflx2(ji,jj) = ( zfld16 - zflu16 ) * tmask(ji,jj,1)
+            tra(ji,jj,1,jpao2) = tra(ji,jj,1,jpao2) + zoflx2(ji,jj) * rfact2 / e3t_n(ji,jj,1)
          END DO
       END DO
 

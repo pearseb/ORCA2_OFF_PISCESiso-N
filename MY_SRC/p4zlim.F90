@@ -93,6 +93,7 @@ CONTAINS
       REAL(wp) ::   z1_trbdia, z1_trbphy, ztem1, ztem2, zetot1, zetot2
       REAL(wp) ::   zdenom, zratio, zironmin
       REAL(wp) ::   zconc1d, zconc1dnh4, zconc0n, zconc0nnh4   
+      REAL(wp) ::   zlimnh4, zlimno3, znutlimtot, zbactnh4, zbactno3
       !!---------------------------------------------------------------------
       !
       IF( ln_timing )   CALL timing_start('p4z_lim')
@@ -131,11 +132,20 @@ CONTAINS
 
                ! Michaelis-Menten Limitation term for nutrients Small bacteria
                ! -------------------------------------------------------------
-               zdenom = 1. /  ( concbno3 * concbnh4 + concbnh4 * zton + concbno3 * trb(ji,jj,jk,jpnh4) )
-               xnanono3(ji,jj,jk) = zton * concbnh4 * zdenom
-               xnanonh4(ji,jj,jk) = trb(ji,jj,jk,jpnh4) * concbno3 * zdenom
+               zlimnh4 = trb(ji,jj,jk,jpnh4) / ( concbno3 + trb(ji,jj,jk,jpnh4))
+               zlimno3 = trb(ji,jj,jk,jpno3) / ( concbno3 + trb(ji,jj,jk,jpno3))
+               znutlimtot = ( trb(ji,jj,jk,jpnh4) + trb(ji,jj,jk,jpno3) ) / ( concbno3 + trb(ji,jj,jk,jpnh4) + trb(ji,jj,jk,jpno3) )
+
+               zbactnh4 = znutlimtot * 5.0 * zlimnh4 / ( zlimno3 + 5.0 * zlimnh4 + rtrn )
+               zbactno3 = znutlimtot * zlimno3 / ( zlimno3 + 5.0 * zlimnh4 + rtrn )
+ 
+               ! Old N-lim parameterisation
+               !zdenom = 1. /  ( concbno3 * concbnh4 + concbnh4 * zton + concbno3 * trb(ji,jj,jk,jpnh4) )
+               !xnanono3(ji,jj,jk) = zton * concbnh4 * zdenom
+               !xnanonh4(ji,jj,jk) = trb(ji,jj,jk,jpnh4) * concbno3 * zdenom
+               !zlim1    = xnanono3(ji,jj,jk) + xnanonh4(ji,jj,jk)
                !
-               zlim1    = xnanono3(ji,jj,jk) + xnanonh4(ji,jj,jk)
+               zlim1    = zbactno3 + zbactnh4
                zlim2    = trb(ji,jj,jk,jppo4) / ( trb(ji,jj,jk,jppo4) + concbnh4 )
                zlim3    = trb(ji,jj,jk,jpfer) / ( concbfe + trb(ji,jj,jk,jpfer) )
                zlim4    = trb(ji,jj,jk,jpdoc) / ( xkdoc   + trb(ji,jj,jk,jpdoc) )
@@ -144,9 +154,17 @@ CONTAINS
 
                ! Michaelis-Menten Limitation term for nutrients Small flagellates
                ! -----------------------------------------------
-               zdenom = 1. /  ( zconc0n * zconc0nnh4 + zconc0nnh4 * zton + zconc0n * trb(ji,jj,jk,jpnh4) )
-               xnanono3(ji,jj,jk) = zton * zconc0nnh4 * zdenom
-               xnanonh4(ji,jj,jk) = trb(ji,jj,jk,jpnh4) * zconc0n    * zdenom
+               zlimnh4 = trb(ji,jj,jk,jpnh4) / ( zconc0n + trb(ji,jj,jk,jpnh4) )
+               zlimno3 = trb(ji,jj,jk,jpno3) / ( zconc0n + trb(ji,jj,jk,jpno3) )
+               znutlimtot = ( trb(ji,jj,jk,jpnh4) + trb(ji,jj,jk,jpno3) ) / ( zconc0n + trb(ji,jj,jk,jpnh4) + trb(ji,jj,jk,jpno3) )
+            
+               xnanonh4(ji,jj,jk) = znutlimtot * 5.0 * zlimnh4 / ( zlimno3 + 5.0 * zlimnh4 + rtrn )
+               xnanono3(ji,jj,jk) = znutlimtot * zlimno3 / ( zlimno3 + 5.0 * zlimnh4 + rtrn )
+
+               ! Old N-lim parameterisation
+               !zdenom = 1. /  ( zconc0n * zconc0nnh4 + zconc0nnh4 * zton + zconc0n * trb(ji,jj,jk,jpnh4) )
+               !xnanono3(ji,jj,jk) = zton * zconc0nnh4 * zdenom
+               !xnanonh4(ji,jj,jk) = trb(ji,jj,jk,jpnh4) * zconc0n    * zdenom
                !
                zlim1    = xnanono3(ji,jj,jk) + xnanonh4(ji,jj,jk)
                zlim2    = trb(ji,jj,jk,jppo4) / ( trb(ji,jj,jk,jppo4) + zconc0nnh4 )
@@ -159,9 +177,16 @@ CONTAINS
                !
                !   Michaelis-Menten Limitation term for nutrients Diatoms
                !   ----------------------------------------------
-               zdenom   = 1. / ( zconc1d * zconc1dnh4 + zconc1dnh4 * zton + zconc1d * trb(ji,jj,jk,jpnh4) )
-               xdiatno3(ji,jj,jk) = zton * zconc1dnh4 * zdenom
-               xdiatnh4(ji,jj,jk) = trb(ji,jj,jk,jpnh4) * zconc1d    * zdenom
+               zlimnh4 = trb(ji,jj,jk,jpnh4) / ( zconc1d + trb(ji,jj,jk,jpnh4) )
+               zlimno3 = trb(ji,jj,jk,jpno3) / ( zconc1d + trb(ji,jj,jk,jpno3) )
+               znutlimtot = ( trb(ji,jj,jk,jpnh4) + trb(ji,jj,jk,jpno3) ) / ( zconc1d + trb(ji,jj,jk,jpnh4) + trb(ji,jj,jk,jpno3) )
+               xdiatnh4(ji,jj,jk) = znutlimtot * 5.0 * zlimnh4 / ( zlimno3 + 5.0 * zlimnh4 + rtrn )
+               xdiatno3(ji,jj,jk) = znutlimtot * zlimno3 / ( zlimno3 + 5.0 * zlimnh4 + rtrn )
+
+               ! Old N-lim parameteration
+               !zdenom   = 1. / ( zconc1d * zconc1dnh4 + zconc1dnh4 * zton + zconc1d * trb(ji,jj,jk,jpnh4) )
+               !xdiatno3(ji,jj,jk) = zton * zconc1dnh4 * zdenom
+               !xdiatnh4(ji,jj,jk) = trb(ji,jj,jk,jpnh4) * zconc1d    * zdenom
                !
                zlim1    = xdiatno3(ji,jj,jk) + xdiatnh4(ji,jj,jk)
                zlim2    = trb(ji,jj,jk,jppo4) / ( trb(ji,jj,jk,jppo4) + zconc1dnh4  )

@@ -442,7 +442,7 @@ CONTAINS
                     !   No fractionation, takes on d18O of seawater (Guy et al. 1993 Plant Phys; Helman et al. 2005 Plant Phys)
                     tra(ji,jj,jk,jp18oxy) = tra(ji,jj,jk,jp18oxy) + ( o2ut * ( zproregn(ji,jj,jk) + zproregd(ji,jj,jk))  &
                     &                       + ( o2ut + o2nit )  * ( zprono3n(ji,jj,jk) + zprono3d(ji,jj,jk)              &
-                    &                       + zprono2n(ji,jj,jk) + zprono2d(ji,jj,jk) ) ) * ((d18Oh2o+e18oxy_pro)/1000. + 1.)
+                    &                       + zprono2n(ji,jj,jk) + zprono2d(ji,jj,jk) ) ) * (1.0 + (d18Oh2o+e18oxy_pro)/1000.)
 
                     ! nitrate and nitite oxygen atom fractionation
                     ! --------------------------------------------

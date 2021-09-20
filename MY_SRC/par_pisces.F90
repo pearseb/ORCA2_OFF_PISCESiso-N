@@ -17,7 +17,8 @@ MODULE par_pisces
    INTEGER, PUBLIC ::   jpdom     !: dissolved organic matter 
    INTEGER, PUBLIC ::   jpdic     !: dissolved inoganic carbon concentration 
    INTEGER, PUBLIC ::   jptal     !: total alkalinity 
-   INTEGER, PUBLIC ::   jpoxy     !: oxygen carbon concentration 
+   INTEGER, PUBLIC ::   jpoxy     !: oxygen concentration 
+   INTEGER, PUBLIC ::   jpao2     !: preformed oxygen concentration 
    INTEGER, PUBLIC ::   jpcal     !: calcite  concentration 
    INTEGER, PUBLIC ::   jppo4     !: phosphate concentration 
    INTEGER, PUBLIC ::   jppoc     !: small particulate organic phosphate concentration

@@ -129,7 +129,8 @@ CONTAINS
         cltra = ctrcnm(jn) 
         IF( cltra == 'DIC'      )   jpdic = jn      !: dissolved inoganic carbon concentration 
         IF( cltra == 'Alkalini' )   jptal = jn      !: total alkalinity 
-        IF( cltra == 'O2'       )   jpoxy = jn      !: oxygen carbon concentration 
+        IF( cltra == 'O2'       )   jpoxy = jn      !: oxygen concentration 
+        IF( cltra == 'preO2'    )   jpao2 = jn      !: preformed oxygen concentration 
         IF( cltra == 'CaCO3'    )   jpcal = jn      !: calcite  concentration 
         IF( cltra == 'PO4'      )   jppo4 = jn      !: phosphate concentration 
         IF( cltra == 'POC'      )   jppoc = jn      !: small particulate organic phosphate concentration
@@ -206,6 +207,7 @@ CONTAINS
          trn(:,:,:,jpdoc) = bioma0
          trn(:,:,:,jptal) = alka0
          trn(:,:,:,jpoxy) = oxyg0
+         trn(:,:,:,jpao2) = oxyg0
          trn(:,:,:,jpcal) = bioma0
          trn(:,:,:,jppo4) = po4 / po4r
          trn(:,:,:,jppoc) = bioma0
