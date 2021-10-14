@@ -316,7 +316,7 @@ CONTAINS
                if ( ln_newnitr ) then
                  ! Ammonia oxidation
                  zph = min(14., max(0., (-1)*log10(hi(ji,jj,jk) + rtrn) ) )
-                 zlimaoaph = trb(ji,jj,jk,jpnh4) * min(1., 10**(zph - 9.3) / 10**(8.0 - 9.3) ) * tmask(ji,jj,jk)
+                 zlimaoaph = min(1., 10**(zph - 9.3) / 10**(8.0 - 9.3) ) * tmask(ji,jj,jk)
                  zlimaoan = (trb(ji,jj,jk,jpnh4)+rtrn) / ( trb(ji,jj,jk,jpnh4) + kaoanh4 + rtrn)
                  zlimaoaf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + kaoafer + rtrn)
                  zonitrnh4(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4) * zlimaoan * zlimaoaph      &
