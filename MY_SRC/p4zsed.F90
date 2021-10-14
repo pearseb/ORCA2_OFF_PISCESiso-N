@@ -560,6 +560,10 @@ CONTAINS
             IF( iom_use("SedSi" ) )  CALL iom_put( "SedSi",  zsedsi (:,:) * zfact )
             IF( iom_use("SedC" ) )   CALL iom_put( "SedC",   zsedc  (:,:) * zfact )
             IF( iom_use("Sdenit" ) ) CALL iom_put( "Sdenit", sdenit (:,:) * zfact * rno3 )
+            IF( iom_use("SDEN3D" ) ) CALL iom_put( "SDEN3D", zpdenit(:,:,:) * rdenit * zfact * rno3 * tmask(:,:,:) )
+            IF( iom_use("SREM3D" ) ) CALL iom_put( "SREM3D", zolimit(:,:,:) * zfact * tmask(:,:,:) )
+            IF( iom_use("River_NO3" ) ) CALL iom_put( "River_NO3", rivdin(:,:) * zfact )
+            IF( iom_use("Ndep_NO3" ) ) CALL iom_put( "Ndep_NO3", nitdep(:,:) * zfact )
          ENDIF
       ENDIF
       !

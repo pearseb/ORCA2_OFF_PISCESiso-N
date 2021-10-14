@@ -166,6 +166,7 @@ CONTAINS
                zgrarsig  = zgrarem * sigma1
                tra(ji,jj,jk,jppo4) = tra(ji,jj,jk,jppo4) + zgrarsig
                tra(ji,jj,jk,jpnh4) = tra(ji,jj,jk,jpnh4) + zgrarsig
+               excretion1(ji,jj,jk) = zgrarsig
                tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) + zgrarem - zgrarsig
                !
                IF( ln_ligand ) THEN
@@ -234,6 +235,10 @@ CONTAINS
            IF( iom_use( "GRAZ1" ) ) THEN
               zw3d(:,:,:) = zgrazing1(:,:,:) * 1.e+3 * rfact2r * tmask(:,:,:)  !  Total grazing of phyto by zooplankton
               CALL iom_put( "GRAZ1", zw3d )
+           ENDIF
+           IF( iom_use( "EXCR1" ) ) THEN
+              zw3d(:,:,:) = excretion1(:,:,:) * rno3 * 1.e+3 * rfact2r * tmask(:,:,:) !  Total excretion of NH4 by zooplankton
+              CALL iom_put( "EXCR1", zw3d )
            ENDIF
            IF( iom_use( "FEZOO" ) ) THEN
               zw3d(:,:,:) = zfezoo(:,:,:) * 1e9 * 1.e+3 * rfact2r * tmask(:,:,:)   !

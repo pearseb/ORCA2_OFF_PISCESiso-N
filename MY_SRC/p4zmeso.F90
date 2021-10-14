@@ -275,6 +275,7 @@ CONTAINS
                zgrarsig  = zgrarem2 * sigma2 ! 60% of carbon excreted to NH4 [food/mes] --> [NH4]
                tra(ji,jj,jk,jppo4) = tra(ji,jj,jk,jppo4) + zgrarsig
                tra(ji,jj,jk,jpnh4) = tra(ji,jj,jk,jpnh4) + zgrarsig
+               excretion2(ji,jj,jk) = zgrarsig
                tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) + zgrarem2 - zgrarsig
                !
                IF( ln_ligand ) THEN 
@@ -361,6 +362,10 @@ CONTAINS
          IF( iom_use( "GRAZ2" ) ) THEN
             zw3d(:,:,:) = zgrazing2(:,:,:) * 1.e+3 * rfact2r * tmask(:,:,:)  !   Total grazing of phyto by zooplankton
             CALL iom_put( "GRAZ2", zw3d )
+         ENDIF
+         IF( iom_use( "EXCR2" ) ) THEN
+            zw3d(:,:,:) = excretion2(:,:,:) * rno3 * 1.e+3 * rfact2r * tmask(:,:,:)  ! Total excretion of NH4 by mesozooplankton
+            CALL iom_put( "EXCR2", zw3d )
          ENDIF
          IF( iom_use( "PCAL" ) ) THEN
             zw3d(:,:,:) = prodcal(:,:,:) * 1.e+3 * rfact2r * tmask(:,:,:)   !  Calcite production

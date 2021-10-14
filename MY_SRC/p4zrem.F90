@@ -114,7 +114,7 @@ CONTAINS
       REAL(wp) ::   zbactfer, zolimit, zrfact2
       REAL(wp) ::   zammonic, zoxyremn, zoxyremp, znitrate2ton
       REAL(wp) ::   zosil, ztem, zolimic, zolimin, zolimip, zdenitrn, zdenitrp
-      REAL(wp) ::   znh3, zlimaoan, zlimaoaf, zlimnobn, zlimnobf, knobno2a, mu_noba
+      REAL(wp) ::   zlimaoan, zlimaoaph, zlimaoaf, zlimnobn, zlimnobf, knobno2a, mu_noba
       REAL(wp) ::   zr15_doc, zr15_no3, zr15_no2, zr15_nh4
       REAL(wp) ::   zr18_no3, zr18_no2, zr18_oxy
       REAL(wp) ::   d18Oh2o, tk, zph, k_h2ono2, e18o_eq
@@ -316,17 +316,17 @@ CONTAINS
                if ( ln_newnitr ) then
                  ! Ammonia oxidation
                  zph = min(14., max(0., (-1)*log10(hi(ji,jj,jk) + rtrn) ) )
-                 znh3 = trb(ji,jj,jk,jpnh4) * min(1., 10**(zph - 9.3) / 10**(8.0 - 9.3) ) * tmask(ji,jj,jk)
+                 zlimaoaph = trb(ji,jj,jk,jpnh4) * min(1., 10**(zph - 9.3) / 10**(8.0 - 9.3) ) * tmask(ji,jj,jk)
                  zlimaoan = (trb(ji,jj,jk,jpnh4)+rtrn) / ( trb(ji,jj,jk,jpnh4) + kaoanh4 + rtrn)
                  zlimaoaf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + kaoafer + rtrn)
-                 zonitrnh4(ji,jj,jk) = mu_aoa * xstep * znh3 * min(zlimaoan, zlimaoaf)   &
-                 &                     * (1. - nitrfac(ji,jj,jk)) / ( 1. + emoy(ji,jj,jk) )
+                 zonitrnh4(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4) * zlimaoan * zlimaoaph      &
+                 &                     * zlimaoaf * (1. - nitrfac(ji,jj,jk)) / ( 1. + emoy(ji,jj,jk) )
                  ! Nitrite oxidation
                  knobno2a = knobno2 + 0.15e-6 * nitrfac(ji,jj,jk) ! Sun et al 2017 GRL
                  mu_noba = mu_nob - mu_nob*0.5*nitrfac(ji,jj,jk)  ! Low nitrification rates in OMZs
                  zlimnobn = (trb(ji,jj,jk,jpno2)+rtrn) / ( trb(ji,jj,jk,jpno2) + knobno2a + rtrn)
                  zlimnobf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + knobfer + rtrn)
-                 zonitrno2(ji,jj,jk) = mu_noba * xstep * trb(ji,jj,jk,jpno2) * min(zlimnobn,zlimnobf)    &
+                 zonitrno2(ji,jj,jk) = mu_noba * xstep * trb(ji,jj,jk,jpno2) * zlimnobn * zlimnobf      &
                  &                     / ( 1. + emoy(ji,jj,jk) )
                endif
 

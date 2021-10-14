@@ -34,6 +34,7 @@ MODULE p4zsms
 
    INTEGER ::    numco2, numnut, numnit      ! logical unit for co2 budget
    REAL(wp) ::   alkbudget, no3budget, silbudget, ferbudget, po4budget
+   REAL(wp) ::   dicbudget, oxybudget, d15no3budget
    REAL(wp) ::   xfact1, xfact2, xfact3
 
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   xnegtr     ! Array used to indicate negative tracer values
@@ -462,6 +463,7 @@ CONTAINS
       !!---------------------------------------------------------------------
       INTEGER, INTENT( in ) ::   kt      ! ocean time-step index      
       REAL(wp)             ::  zrdenittot, zsdenittot, znitrpottot
+      REAL(wp)             ::  znh4oxtot, zno2oxtot
       CHARACTER(LEN=100)   ::   cltxt
       INTEGER :: jk
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zwork
@@ -543,6 +545,27 @@ CONTAINS
          ferbudget = ferbudget / areatot
          CALL iom_put( "pfertot", ferbudget )
       ENDIF
+      IF( iom_use( "poxytot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
+         zwork(:,:,:) =  trn(:,:,:,jpoxy)
+         !
+         oxybudget = glob_sum( 'p4zsms', zwork(:,:,:) * cvol(:,:,:)  )
+         oxybudget = oxybudget / areatot
+         CALL iom_put( "poxytot", oxybudget )
+      ENDIF
+      IF( iom_use( "pdictot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
+         zwork(:,:,:) =  trn(:,:,:,jpdic)
+         !
+         dicbudget = glob_sum( 'p4zsms', zwork(:,:,:) * cvol(:,:,:)  )         !
+         dicbudget = dicbudget / areatot
+         CALL iom_put( "pdictot", dicbudget )
+      ENDIF
+      IF( iom_use( "pd15no3tot" ) .OR. ( ln_check_mass .AND. kt == nitend )  ) THEN
+         zwork(:,:,:) = ((trn(:,:,:,jp15no3)+rtrn)/(trn(:,:,:,jpno3)+rtrn)-1.0)*1000
+         !
+         d15no3budget = glob_sum( 'p4zsms', zwork(:,:,:) * cvol(:,:,:)  )
+         d15no3budget = d15no3budget / areatot
+         CALL iom_put( "pd15no3tot", d15no3budget )
+      ENDIF
       !
       ! Global budget of N SMS : denitrification in the water column and in the sediment
       !                          nitrogen fixation by the diazotrophs
@@ -550,6 +573,16 @@ CONTAINS
       IF( iom_use( "tnfix" ) .OR.  ( ln_check_mass .AND. kt == nitend )  ) THEN
          znitrpottot  = glob_sum ( 'p4zsms', nitrpot(:,:,:) * nitrfix * cvol(:,:,:) )
          CALL iom_put( "tnfix"  , znitrpottot * xfact3 )  ! Global  nitrogen fixation molC/l  to molN/m3 
+      ENDIF
+      !
+      IF( iom_use( "tnh4ox" ) .OR.  ( ln_check_mass .AND. kt == nitend )  ) THEN
+         znh4oxtot  = glob_sum ( 'p4zsms', zonitrnh4(:,:,:) * cvol(:,:,:) )
+         CALL iom_put( "tnh4ox"  , znh4oxtot * xfact3 )  ! Global ammonia oxidation molC/l  to molN/m3 
+      ENDIF
+      !
+      IF( iom_use( "tno2ox" ) .OR.  ( ln_check_mass .AND. kt == nitend )  ) THEN
+         zno2oxtot  = glob_sum ( 'p4zsms', zonitrno2(:,:,:) * cvol(:,:,:) )
+         CALL iom_put( "tno2ox"  , zno2oxtot * xfact3 )  ! Global nitrite oxidation molC/l  to molN/m3 
       ENDIF
       !
       IF( iom_use( "tdenit" ) .OR.  ( ln_check_mass .AND. kt == nitend )  ) THEN
