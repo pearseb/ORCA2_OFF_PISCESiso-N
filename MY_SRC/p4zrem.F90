@@ -41,9 +41,12 @@ MODULE p4zrem
    REAL(wp), PUBLIC ::   mu_aoa     !: Growth rate of ammonia-oxidising archaea
    REAL(wp), PUBLIC ::   kaoanh4    !: NH4 half-saturation constant for ammonia-oxidising archaea 
    REAL(wp), PUBLIC ::   kaoafer    !: Fer half-saturation constant for ammonia-oxidising archaea 
+   REAL(wp), PUBLIC ::   kaoapar    !: PAR half-saturation constant for ammonia-oxidising archaea 
+   REAL(wp), PUBLIC ::   kaoaph     !: pH below which pH becomes limiting to ammonia oxidation
    REAL(wp), PUBLIC ::   mu_nob     !: Growth rate of nitrite-oxidising bacteria
    REAL(wp), PUBLIC ::   knobno2    !: NO2 half-saturation constant for nitrite-oxidising bacteria
    REAL(wp), PUBLIC ::   knobfer    !: Fer half-saturation constant for nitrite-oxidising bacteria
+   REAL(wp), PUBLIC ::   knobpar    !: PAR half-saturation constant for nitrite-oxidising bacteria
    REAL(wp), PUBLIC ::   ranammox   !: Maximum rate of anammox (per day)
    REAL(wp), PUBLIC ::   e15n_nar   !: N15 fractionation due to nitrate reduction
    REAL(wp), PUBLIC ::   e15n_nir   !: N15 fractionation due to nitrite reduction
@@ -66,6 +69,7 @@ MODULE p4zrem
    REAL(wp), PUBLIC ::   fb_h2ono2  !: fraction of biotic oxygen atom exchange between nitrite and water
   
    LOGICAL , PUBLIC ::   ln_newnitr !: New nitrification parameterisation
+   LOGICAL , PUBLIC ::   ln_munitrvar !: Variable growth rate of AOA (Qin et al., 2015 PNAS)
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrnh4    !: ammonia oxidiation array
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   zonitrno2    !: nitrite oxidiation array
@@ -114,7 +118,7 @@ CONTAINS
       REAL(wp) ::   zbactfer, zolimit, zrfact2
       REAL(wp) ::   zammonic, zoxyremn, zoxyremp, znitrate2ton
       REAL(wp) ::   zosil, ztem, zolimic, zolimin, zolimip, zdenitrn, zdenitrp
-      REAL(wp) ::   zlimaoan, zlimaoaph, zlimaoaf, zlimnobn, zlimnobf, knobno2a, mu_noba
+      REAL(wp) ::   mu_aoaa, knobno2a, mu_noba
       REAL(wp) ::   zr15_doc, zr15_no3, zr15_no2, zr15_nh4
       REAL(wp) ::   zr18_no3, zr18_no2, zr18_oxy
       REAL(wp) ::   d18Oh2o, tk, zph, k_h2ono2, e18o_eq
@@ -122,6 +126,8 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj    ) :: ztempbac
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zdepbac, zolimi, zdepprod, zfacsi, zfacsib, zdepeff, zfebact
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zolimi15
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zlimaoan, zlimaoaf, zlimaoap, zlimaoai
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zlimnobn, zlimnobf, zlimnobi
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
       !!---------------------------------------------------------------------
       !
@@ -138,6 +144,15 @@ CONTAINS
 
       IF ( ln_n15 ) THEN
          zolimi15(:,:,:)  = 0._wp
+      ENDIF
+      IF ( ln_newnitr ) THEN
+         zlimaoan(:,:,:) = 1._wp
+         zlimaoaf(:,:,:) = 1._wp
+         zlimaoap(:,:,:) = 1._wp
+         zlimaoai(:,:,:) = 1._wp
+         zlimnobn(:,:,:) = 1._wp
+         zlimnobf(:,:,:) = 1._wp
+         zlimnobi(:,:,:) = 1._wp
       ENDIF
 
       ! Computation of the mean phytoplankton concentration as
@@ -316,18 +331,26 @@ CONTAINS
                if ( ln_newnitr ) then
                  ! Ammonia oxidation
                  zph = min(14., max(0., (-1)*log10(hi(ji,jj,jk) + rtrn) ) )
-                 zlimaoaph = min(1., 10**(zph - 9.3) / 10**(8.0 - 9.3) ) * tmask(ji,jj,jk)
-                 zlimaoan = (trb(ji,jj,jk,jpnh4)+rtrn) / ( trb(ji,jj,jk,jpnh4) + kaoanh4 + rtrn)
-                 zlimaoaf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + kaoafer + rtrn)
-                 zonitrnh4(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4) * zlimaoan * zlimaoaph      &
-                 &                     * zlimaoaf * (1. - nitrfac(ji,jj,jk)) / ( 1. + emoy(ji,jj,jk) )
+                 zlimaoap(ji,jj,jk) = min(1., 10**(zph - 9.3) / 10**(kaoaph - 9.3) ) * tmask(ji,jj,jk)
+                 zlimaoan(ji,jj,jk) = (trb(ji,jj,jk,jpnh4)+rtrn) / ( trb(ji,jj,jk,jpnh4) + kaoanh4 + rtrn)
+                 zlimaoaf(ji,jj,jk) = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + kaoafer + rtrn)
+                 zlimaoai(ji,jj,jk) = 1.0 - (emoy(ji,jj,jk)+rtrn) / (emoy(ji,jj,jk) + kaoapar + rtrn)
+                 mu_aoaa = max(0.2, 0.029 * MAX( 0., tsn(ji,jj,jk,jp_tem) )  - 0.147 )
+                 if ( ln_munitrvar ) then
+                 zonitrnh4(ji,jj,jk) = mu_aoaa * xstep * trb(ji,jj,jk,jpnh4) *                           &
+               &                      zlimaoan(ji,jj,jk) * zlimaoaf(ji,jj,jk) * zlimaoap(ji,jj,jk) * zlimaoai(ji,jj,jk)
+                 else
+                 zonitrnh4(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4) *                           &
+               &                      zlimaoan(ji,jj,jk) * zlimaoaf(ji,jj,jk) * zlimaoap(ji,jj,jk) * zlimaoai(ji,jj,jk)
+                 endif
                  ! Nitrite oxidation
                  knobno2a = knobno2 + 0.15e-6 * nitrfac(ji,jj,jk) ! Sun et al 2017 GRL
                  mu_noba = mu_nob - mu_nob*0.5*nitrfac(ji,jj,jk)  ! Low nitrification rates in OMZs
-                 zlimnobn = (trb(ji,jj,jk,jpno2)+rtrn) / ( trb(ji,jj,jk,jpno2) + knobno2a + rtrn)
-                 zlimnobf = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + knobfer + rtrn)
-                 zonitrno2(ji,jj,jk) = mu_noba * xstep * trb(ji,jj,jk,jpno2) * zlimnobn * zlimnobf      &
-                 &                     / ( 1. + emoy(ji,jj,jk) )
+                 zlimnobn(ji,jj,jk) = (trb(ji,jj,jk,jpno2)+rtrn) / ( trb(ji,jj,jk,jpno2) + knobno2a + rtrn)
+                 zlimnobf(ji,jj,jk) = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + knobfer + rtrn)
+                 zlimnobi(ji,jj,jk) = 1.0 - (emoy(ji,jj,jk)+rtrn) / (emoy(ji,jj,jk) + knobpar + rtrn)
+                 zonitrno2(ji,jj,jk) = mu_noba * xstep * trb(ji,jj,jk,jpno2) *                          &
+               &                       zlimnobn(ji,jj,jk) * zlimnobf(ji,jj,jk) * zlimnobi(ji,jj,jk)
                endif
 
                ! Loss of NH4 and NO2 due to anammox
@@ -496,6 +519,34 @@ CONTAINS
               zw3d(:,:,:) = zonitrno2(:,:,:) * rno3 * tmask(:,:,:) * zfact ! 2nd step of nitrification
               CALL iom_put( "NITRNO2"  , zw3d )
           ENDIF
+          IF( iom_use( "LAOAnh4" ) )  THEN
+              zw3d(:,:,:) = zlimaoan(:,:,:) * tmask(:,:,:) ! Limitation term for nitrification
+              CALL iom_put( "LAOAnh4"  , zw3d )
+          ENDIF
+          IF( iom_use( "LAOAfer" ) )  THEN
+              zw3d(:,:,:) = zlimaoaf(:,:,:) * tmask(:,:,:) ! Limitation term for nitrification
+              CALL iom_put( "LAOAfer"  , zw3d )
+          ENDIF
+          IF( iom_use( "LAOApar" ) )  THEN
+              zw3d(:,:,:) = zlimaoai(:,:,:) * tmask(:,:,:) ! Limitation term for nitrification
+              CALL iom_put( "LAOApar"  , zw3d )
+          ENDIF
+          IF( iom_use( "LAOApH" ) )  THEN
+              zw3d(:,:,:) = zlimaoap(:,:,:) * tmask(:,:,:) ! Limitation term for nitrification
+              CALL iom_put( "LAOApH"  , zw3d )
+          ENDIF
+          IF( iom_use( "LNOBno2" ) )  THEN
+              zw3d(:,:,:) = zlimnobn(:,:,:) * tmask(:,:,:) ! Limitation term for nitrification
+              CALL iom_put( "LNOBno2"  , zw3d )
+          ENDIF
+          IF( iom_use( "LNOBfer" ) )  THEN
+              zw3d(:,:,:) = zlimnobf(:,:,:) * tmask(:,:,:) ! Limitation term for nitrification
+              CALL iom_put( "LNOBfer"  , zw3d )
+          ENDIF
+          IF( iom_use( "LNOBpar" ) )  THEN
+              zw3d(:,:,:) = zlimnobi(:,:,:) * tmask(:,:,:) ! Limitation term for nitrification
+              CALL iom_put( "LNOBpar"  , zw3d )
+          ENDIF
           IF( iom_use( "DENITNO3" ) )  THEN
               zw3d(:,:,:) = denitrno3(:,:,:) * rdenit * rno3 * tmask(:,:,:) * zfact ! Denitrification
               CALL iom_put( "DENITNO3"  , zw3d )
@@ -542,11 +593,11 @@ CONTAINS
       !!
       !!----------------------------------------------------------------------
       NAMELIST/nampisrem/ xremik, nitrif, xsirem, xsiremlab, xsilab, feratb, xkferb,   & 
-         &                xremikc, xremikn, xremikp, mu_aoa, kaoanh4, kaoafer, mu_nob, &
-         &                knobno2, knobfer, ranammox, e15n_nar, e15n_nir, e15n_amo,    &
+         &                xremikc, xremikn, xremikp, mu_aoa, kaoanh4, kaoafer, kaoapar, kaoaph, mu_nob, &
+         &                knobno2, knobfer, knobpar, ranammox, e15n_nar, e15n_nir, e15n_amo,    &
          &                e15n_nio, e15n_amm, e15n_xamo, e15n_xnir, e15n_xnio, e18o_nar&
          &                , e18o_nir, e18o_o2_h2o, e18o_h2o_2, e18o_no2, e18o_xnir,    & 
-         &                e18o_xnio, e18oxy_res, e18oxy_amo, e18oxy_nio, fb_h2ono2, ln_newnitr
+         &                e18o_xnio, e18oxy_res, e18oxy_amo, e18oxy_nio, fb_h2ono2, ln_newnitr, ln_munitrvar
       INTEGER :: ios                 ! Local integer output status for namelist read
       !!----------------------------------------------------------------------
       !
@@ -582,9 +633,12 @@ CONTAINS
          WRITE(numout,*) '      Growth rate of ammonia-oxidising archaea  mu_aoa    =', mu_aoa
          WRITE(numout,*) '      NH4 half-saturation constant for AOA      kaoanh4   =', kaoanh4
          WRITE(numout,*) '      Fer half-saturation constant for AOA      kaoafer   =', kaoafer
+         WRITE(numout,*) '      PAR half-saturation constant for AOA      kaoapar   =', kaoapar
+         WRITE(numout,*) '      pH below which pH is limiting to AOU      kaoaph    =', kaoaph
          WRITE(numout,*) '      Growth rate of nitrite-oxidising bacteria mu_nob    =', mu_nob
          WRITE(numout,*) '      NO2 half-saturation constant for NOB      knobno2   =', knobno2
          WRITE(numout,*) '      Fer half-saturation constant for NOB      knobfer   =', knobfer
+         WRITE(numout,*) '      PAR half-saturation constant for NOB      knobpar   =', knobpar
          WRITE(numout,*) '      Max rate of anammox (per day)             ranammox  =', ranammox
          WRITE(numout,*) '      N15 fractionation - nitrate reductase     e15n_nar  =', e15n_nar
          WRITE(numout,*) '      N15 fractionation - nitrite reductase     e15n_nir  =', e15n_nir
@@ -602,6 +656,7 @@ CONTAINS
          WRITE(numout,*) '      O18 fractionation - anammox NO2 reduction e18o_xnir =', e18o_xnir
          WRITE(numout,*) '      O18 fractionation - anammox NO2 oxidation e18o_xnio =', e18o_xnio
          WRITE(numout,*) '      Logical for new nitrification param       ln_newnitr=', ln_newnitr 
+         WRITE(numout,*) '      Logical for variable AOA growth rate      ln_munitrvar=', ln_munitrvar 
          WRITE(numout,*) '      O18 fractionation (O2)- respiration       e18oxy_res=', e18oxy_res
          WRITE(numout,*) '      O18 fractionation (O2)- ammonia oxidation e18oxy_amo=', e18oxy_amo
          WRITE(numout,*) '      O18 fractionation (O2)- nitrite oxidation e18oxy_nio=', e18oxy_nio
