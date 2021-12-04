@@ -442,6 +442,9 @@ CONTAINS
                DO ji = 1, jpi
                   !                      ! Potential nitrogen fixation dependant on temperature and iron
                   ztemp = tsn(ji,jj,jk,jp_tem)
+                  IF ( ln_senexp ) THEN
+                     ztemp = senexp(ji,jj,jk)*tmask(ji,jj,jk) ! read in temperature !pjb
+                  ENDIF
                   zmudia = MAX( 0.,-0.001096*ztemp**2 + 0.057*ztemp -0.637 ) * 7.625
                   !       Potential nitrogen fixation dependant on temperature and iron
                   xdianh4 = trb(ji,jj,jk,jpnh4) / ( concnnh4 + trb(ji,jj,jk,jpnh4) )

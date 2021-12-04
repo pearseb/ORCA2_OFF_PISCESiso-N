@@ -26,6 +26,7 @@ MODULE p4zsbc
    LOGICAL , PUBLIC ::   ln_ndepo     !: boolean for atmospheric deposition of N
    LOGICAL , PUBLIC ::   ln_ironsed   !: boolean for Fe input from sediments
    LOGICAL , PUBLIC ::   ln_hydrofe   !: boolean for Fe input from hydrothermal vents
+   LOGICAL , PUBLIC ::   ln_senexp    !: boolean for data import for sensitivity exp ! pjb
    REAL(wp), PUBLIC ::   sedfeinput   !: Coastal release of Iron
    REAL(wp), PUBLIC ::   dustsolub    !: Solubility of the dust
    REAL(wp), PUBLIC ::   mfrac        !: Mineral Content of the dust
@@ -66,10 +67,14 @@ MODULE p4zsbc
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_ndepo     ! structure of input nitrogen deposition
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_ironsed   ! structure of input iron from sediment
    TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_hydrofe   ! structure of input iron from hydrothermal vents
+   TYPE(FLD), ALLOCATABLE, DIMENSION(:) ::   sf_senexp    ! structure of data input ! pjb
+
 
    INTEGER , PARAMETER ::   nbtimes = 365                          ! maximum number of times record in a file
    INTEGER             ::   ntimes_dust, ntimes_riv, ntimes_ndep   ! number of time steps in a file
    INTEGER             ::   ntimes_solub, ntimes_hydro             ! number of time steps in a file
+   INTEGER             ::   ntimes_senexp                          ! number of time steps in a file ! pjb
+
 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   dust  , solub    !: dust fields
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   rivdic, rivalk   !: river input fields
@@ -80,6 +85,7 @@ MODULE p4zsbc
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:)   ::   nitdep           !: atmospheric N deposition 
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   ironsed          !: Coastal supply of iron
    REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   hydrofe          !: Hydrothermal vent supply of iron
+   REAL(wp), PUBLIC, ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   senexp           !: Data for import ! pjb
 
    REAL(wp), PUBLIC :: sedsilfrac, sedcalfrac
    REAL(wp), PUBLIC :: rivalkinput, rivdicinput
@@ -113,6 +119,14 @@ CONTAINS
       !
       IF( ln_timing )   CALL timing_start('p4z_sbc')
       !
+      ! pjb
+      IF( ln_senexp ) THEN
+         IF( kt == nit000 .OR. ( kt /= nit000 .AND. ntimes_senexp > 1 ) ) THEN
+            CALL fld_read( kt, 1, sf_senexp )
+            senexp(:,:,:) = sf_senexp(1)%fnow(:,:,:)
+         ENDIF
+      ENDIF
+      ! pjb
       ! Compute dust at nit000 or only if there is more than 1 time record in dust file
       IF( ln_dust ) THEN
          IF( kt == nit000 .OR. ( kt /= nit000 .AND. ntimes_dust > 1 ) ) THEN
@@ -210,7 +224,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER  :: ji, jj, jk, jm, ifpr
       INTEGER  :: ii0, ii1, ij0, ij1
-      INTEGER  :: numdust, numsolub, numriv, numiron, numdepo, numhydro
+      INTEGER  :: numdust, numsolub, numriv, numiron, numdepo, numhydro, numsenexp
       INTEGER  :: ierr, ierr1, ierr2, ierr3
       INTEGER  :: ios                 ! Local integer output status for namelist read
       INTEGER  :: ik50                !  last level where depth less than 50 m
@@ -222,15 +236,15 @@ CONTAINS
       !
       CHARACTER(len=100) ::  cn_dir          ! Root directory for location of ssr files
       TYPE(FLD_N), DIMENSION(jpriv) ::  slf_river    ! array of namelist informations on the fields to read
-      TYPE(FLD_N) ::   sn_dust, sn_solub, sn_ndepo, sn_ironsed, sn_hydrofe   ! informations about the fields to be read
+      TYPE(FLD_N) ::   sn_dust, sn_solub, sn_ndepo, sn_ironsed, sn_hydrofe, sn_senexp   ! informations about the fields to be read
       TYPE(FLD_N) ::   sn_riverdoc, sn_riverdic, sn_riverdsi   ! informations about the fields to be read
       TYPE(FLD_N) ::   sn_riverdin, sn_riverdon, sn_riverdip, sn_riverdop
       !!
-      NAMELIST/nampissbc/cn_dir, sn_dust, sn_solub, sn_riverdic, sn_riverdoc, sn_riverdin, sn_riverdon,     &
-        &                sn_riverdip, sn_riverdop, sn_riverdsi, sn_ndepo, sn_ironsed, sn_hydrofe, &
-        &                ln_dust, ln_solub, ln_river, ln_ndepo, ln_ironsed, ln_ironice, ln_hydrofe,    &
+      NAMELIST/nampissbc/cn_dir, sn_dust, sn_solub, sn_riverdic, sn_riverdoc, sn_riverdin, sn_riverdon,               &
+        &                sn_riverdip, sn_riverdop, sn_riverdsi, sn_ndepo, sn_ironsed, sn_hydrofe, sn_senexp,          & 
+        &                ln_dust, ln_solub, ln_river, ln_ndepo, ln_ironsed, ln_ironice, ln_hydrofe, ln_senexp,        &
         &                sedfeinput, distcoast, dustsolub, icefeinput, wdust, mfrac, nitrfix, diazolight, concfediaz, &
-        &                hratio, lgw_rath, e15n_ben, e15n_amm, d15n_fix, d15n_riv, d15n_dep, e18o_ben, &
+        &                hratio, lgw_rath, e15n_ben, e15n_amm, d15n_fix, d15n_riv, d15n_dep, e18o_ben,                &
         &                d18o_riv, d18o_dep, e18oxy_ben
       !!----------------------------------------------------------------------
       !
@@ -257,6 +271,7 @@ CONTAINS
          WRITE(numout,*) '      Fe input from sediments                  ln_ironsed  = ', ln_ironsed
          WRITE(numout,*) '      Fe input from seaice                     ln_ironice  = ', ln_ironice
          WRITE(numout,*) '      fe input from hydrothermal vents         ln_hydrofe  = ', ln_hydrofe
+         WRITE(numout,*) '      data input for sensitivity exp           ln_senexp   = ', ln_senexp
          WRITE(numout,*) '      coastal release of iron                  sedfeinput  = ', sedfeinput
          WRITE(numout,*) '      distance off the coast                   distcoast   = ', distcoast
          WRITE(numout,*) '      solubility of the dust                   dustsolub   = ', dustsolub
@@ -288,6 +303,32 @@ CONTAINS
       IF( ln_dust .AND. ln_solub ) THEN                ;   ll_solub = .TRUE.
       ELSE                                             ;   ll_solub = .FALSE.
       ENDIF
+
+      ! pjb
+      ! data for sensitivity experiment (time varying field)
+      ! ------------------------------
+      IF( ln_senexp ) THEN
+         !
+         IF(lwp) WRITE(numout,*) '    initialize data for sensitivity experiment '
+         IF(lwp) WRITE(numout,*) '    ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ '
+         !
+         ALLOCATE( senexp(jpi,jpj,jpk) )    ! allocation
+         !
+         ALLOCATE( sf_senexp(1), STAT=ierr )           !* allocate and fill sf_senexp (forcing structure) with sn_senexp
+         IF( ierr > 0 )   CALL ctl_stop( 'STOP', 'p4z_sed_init: unable to allocate sf_senexp structure' )
+         !
+         CALL fld_fill( sf_senexp, (/ sn_senexp /), cn_dir, 'p4z_sed_init', 'Sensitivity experiment data', 'nampissed' )
+                                     ALLOCATE( sf_senexp(1)%fnow(jpi,jpj,jpk)   )
+         IF( sn_senexp%ln_tint )     ALLOCATE( sf_senexp(1)%fdta(jpi,jpj,jpk,2) )
+         !
+         IF( Agrif_Root() ) THEN   !  Only on the master grid
+            ! Get size of unlimited dimension (time) in file
+            CALL iom_open (  TRIM( sn_senexp%clname ) , numsenexp )
+            ntimes_senexp = iom_getszuld( numsenexp )   ! get number of record in file
+         END IF
+      END IF
+      ! pjb
+
 
       ! dust input from the atmosphere
       ! ------------------------------
