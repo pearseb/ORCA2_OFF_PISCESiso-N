@@ -118,7 +118,7 @@ CONTAINS
       REAL(wp) ::   zbactfer, zolimit, zrfact2
       REAL(wp) ::   zammonic, zoxyremn, zoxyremp, znitrate2ton
       REAL(wp) ::   zosil, ztem, zolimic, zolimin, zolimip, zdenitrn, zdenitrp
-      REAL(wp) ::   mu_aoaa, knobno2a, mu_noba
+      REAL(wp) ::   knobno2a, mu_noba
       REAL(wp) ::   zr15_doc, zr15_no3, zr15_no2, zr15_nh4
       REAL(wp) ::   zr18_no3, zr18_no2, zr18_oxy
       REAL(wp) ::   d18Oh2o, tk, zph, k_h2ono2, e18o_eq
@@ -126,7 +126,7 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj    ) :: ztempbac
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zdepbac, zolimi, zdepprod, zfacsi, zfacsib, zdepeff, zfebact
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zolimi15
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zlimaoan, zlimaoaf, zlimaoap, zlimaoai
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: mu_aoaa, mu_aoamax, zlimaoan, zlimaoaf, zlimaoap, zlimaoai
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zlimnobn, zlimnobf, zlimnobi
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: zw3d
       !!---------------------------------------------------------------------
@@ -146,6 +146,8 @@ CONTAINS
          zolimi15(:,:,:)  = 0._wp
       ENDIF
       IF ( ln_newnitr ) THEN
+         mu_aoaa(:,:,:) = 0._wp
+         mu_aoamax(:,:,:) = 0._wp
          zlimaoan(:,:,:) = 1._wp
          zlimaoaf(:,:,:) = 1._wp
          zlimaoap(:,:,:) = 1._wp
@@ -335,11 +337,13 @@ CONTAINS
                  zlimaoan(ji,jj,jk) = (trb(ji,jj,jk,jpnh4)+rtrn) / ( trb(ji,jj,jk,jpnh4) + kaoanh4 + rtrn)
                  zlimaoaf(ji,jj,jk) = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + kaoafer + rtrn)
                  zlimaoai(ji,jj,jk) = 1.0 - (emoy(ji,jj,jk)+rtrn) / (emoy(ji,jj,jk) + kaoapar + rtrn)
-                 mu_aoaa = max(0.2, 0.029 * MAX( 0., tsn(ji,jj,jk,jp_tem) )  - 0.147 )
                  if ( ln_munitrvar ) then
-                 zonitrnh4(ji,jj,jk) = mu_aoaa * xstep * trb(ji,jj,jk,jpnh4) *                           &
+                 mu_aoaa(ji,jj,jk) = max(0.2, 0.029 * MAX( 0., tsn(ji,jj,jk,jp_tem) )  - 0.147 )
+                 mu_aoamax(ji,jj,jk) = mu_aoaa(ji,jj,jk) * xstep * trb(ji,jj,jk,jpnh4) 
+                 zonitrnh4(ji,jj,jk) = mu_aoaa(ji,jj,jk) * xstep * trb(ji,jj,jk,jpnh4) *                 &
                &                      zlimaoan(ji,jj,jk) * zlimaoaf(ji,jj,jk) * zlimaoap(ji,jj,jk) * zlimaoai(ji,jj,jk)
                  else
+                 mu_aoamax(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4)
                  zonitrnh4(ji,jj,jk) = mu_aoa * xstep * trb(ji,jj,jk,jpnh4) *                           &
                &                      zlimaoan(ji,jj,jk) * zlimaoaf(ji,jj,jk) * zlimaoap(ji,jj,jk) * zlimaoai(ji,jj,jk)
                  endif
@@ -518,6 +522,14 @@ CONTAINS
           IF( iom_use( "NITRNO2" ) )  THEN
               zw3d(:,:,:) = zonitrno2(:,:,:) * rno3 * tmask(:,:,:) * zfact ! 2nd step of nitrification
               CALL iom_put( "NITRNO2"  , zw3d )
+          ENDIF
+          IF( iom_use( "muAOA" ) )  THEN
+              zw3d(:,:,:) = mu_aoaa(:,:,:) * tmask(:,:,:) ! growth rate of AOA
+              CALL iom_put( "muAOA"  , zw3d )
+          ENDIF
+          IF( iom_use( "muAOAmax" ) )  THEN
+              zw3d(:,:,:) = mu_aoamax(:,:,:) * rno3 * tmask(:,:,:) * zfact ! maximum ammonia oxidation rate
+              CALL iom_put( "muAOAmax"  , zw3d )
           ENDIF
           IF( iom_use( "LAOAnh4" ) )  THEN
               zw3d(:,:,:) = zlimaoan(:,:,:) * tmask(:,:,:) ! Limitation term for nitrification
