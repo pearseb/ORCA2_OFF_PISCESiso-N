@@ -475,16 +475,15 @@ CONTAINS
 
                     ! Mulitply the biological fractionation (CO2(aq) --> POC) by the equilibrium
                     ! fractionation (DIC --> CO2(aq)) to get full biological fractionation effect (DIC --> POC)
-                    ze13cprod1(ji,jj,jk) = max(e13c_min, min(e13c_max,                                        &
-                    &                      ze13cprod1(ji,jj,jk) *                                             &
-                    &                      ( (za_g(ji,jj,jk)+rtrn) / (za_dic(ji,jj,jk)+rtrn) ) ))
-                    ze13cprod2(ji,jj,jk) = max(e13c_min, min(e13c_max,                                        &
-                    &                      ze13cprod2(ji,jj,jk) *                                             &
-                    &                      ( (za_g(ji,jj,jk)+rtrn) / (za_dic(ji,jj,jk)+rtrn) ) ))
+                    ze13cprod1(ji,jj,jk) = ( 1. - ze13cprod1(ji,jj,jk) / 1000 ) *                             &
+                    &                      ( (za_g(ji,jj,jk)+rtrn) / (za_dic(ji,jj,jk)+rtrn) ) 
+                    ze13cprod2(ji,jj,jk) = ( 1. - ze13cprod2(ji,jj,jk) / 1000 ) *                             &
+                    &                      ( (za_g(ji,jj,jk)+rtrn) / (za_dic(ji,jj,jk)+rtrn) ) 
 
                     ! Multiply by the ratio of insitu C13/C12 to get actual change in 13C
-                    zr13   = ( 1.0 - ze13cprod1(ji,jj,jk)/1000.0 ) * zr13_dic
-                    zr13_2 = ( 1.0 - ze13cprod2(ji,jj,jk)/1000.0 ) * zr13_dic
+                    ! and also apply a maximum and minimum fractionation factor
+                    zr13   = min(1.-e13c_min/1000, max(1.-e13c_max/1000, ze13cprod1(ji,jj,jk) )) * zr13_dic
+                    zr13_2 = min(1.-e13c_min/1000, max(1.-e13c_max/1000, ze13cprod2(ji,jj,jk) )) * zr13_dic
 
                     tra(ji,jj,jk,jp13phy) = tra(ji,jj,jk,jp13phy) + zprorcan(ji,jj,jk) * texcretn * zr13
                     tra(ji,jj,jk,jp13dia) = tra(ji,jj,jk,jp13dia) + zprorcad(ji,jj,jk) * texcretd * zr13_2
