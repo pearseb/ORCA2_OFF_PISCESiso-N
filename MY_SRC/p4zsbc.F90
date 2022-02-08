@@ -39,6 +39,10 @@ MODULE p4zsbc
    REAL(wp)         ::   distcoast    !: Distance off the coast for Iron from sediments
    REAL(wp), PUBLIC ::   lgw_rath     !: Weak ligand ratio from hydro sources
 
+   REAL(wp), PUBLIC ::   d13c_rivdic  !: delta13C signature of river DIC input
+   REAL(wp), PUBLIC ::   d13c_rivdoc  !: delta13C signature of river DOC input
+   REAL(wp), PUBLIC ::   d13c_fix     !: delta13C signature of N2 fixation input
+
    REAL(wp), PUBLIC ::   e15n_ben     !: N15 fractionation - Benthic denitrification
    REAL(wp), PUBLIC ::   e15n_amm     !: N15 fractionation - ammonification
    REAL(wp), PUBLIC ::   d15n_fix     !: delta15N signature of N2 fixation
@@ -123,7 +127,7 @@ CONTAINS
       IF( ln_senexp ) THEN
          IF( kt == nit000 .OR. ( kt /= nit000 .AND. ntimes_senexp > 1 ) ) THEN
             CALL fld_read( kt, 1, sf_senexp )
-            senexp(:,:,:) = sf_senexp(1)%fnow(:,:,:)
+            senexp(:,:,:) = MAX(-1.85, MIN(40.0, sf_senexp(1)%fnow(:,:,:) ))
          ENDIF
       ENDIF
       ! pjb
@@ -244,8 +248,8 @@ CONTAINS
         &                sn_riverdip, sn_riverdop, sn_riverdsi, sn_ndepo, sn_ironsed, sn_hydrofe, sn_senexp,          & 
         &                ln_dust, ln_solub, ln_river, ln_ndepo, ln_ironsed, ln_ironice, ln_hydrofe, ln_senexp,        &
         &                sedfeinput, distcoast, dustsolub, icefeinput, wdust, mfrac, nitrfix, diazolight, concfediaz, &
-        &                hratio, lgw_rath, e15n_ben, e15n_amm, d15n_fix, d15n_riv, d15n_dep, e18o_ben,                &
-        &                d18o_riv, d18o_dep, e18oxy_ben
+        &                hratio, lgw_rath, d13c_rivdic, d13c_rivdoc, d13c_fix, e15n_ben, e15n_amm, d15n_fix, d15n_riv,&
+        &                d15n_dep, e18o_ben, d18o_riv, d18o_dep, e18oxy_ben
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -285,6 +289,9 @@ CONTAINS
          IF( ln_ligand ) THEN
             WRITE(numout,*) '      Weak ligand ratio from sed hydro sources  lgw_rath   = ', lgw_rath
          ENDIF
+          WRITE(numout,*) '    delta13C signature of river DIC input        d13c_rivdic = ', d13c_rivdic
+          WRITE(numout,*) '    delta13C signature of river DOC input        d13c_rivdoc = ', d13c_rivdoc
+          WRITE(numout,*) '    delta13C signature of N2 fixation            d13c_fix = ', d13c_fix
           WRITE(numout,*) '    N15 fractionation - Benthic denitrification  e15n_ben = ', e15n_ben
           WRITE(numout,*) '    N15 fractionation - ammonification           e15n_amm = ', e15n_amm
           WRITE(numout,*) '    delta15N signature of N2 fixation            d15n_fix = ', d15n_fix

@@ -47,6 +47,7 @@ CONTAINS
       REAL(wp) ::   zaggpon , zaggdon, zaggdon2, zaggdon3
       REAL(wp) ::   zaggpop, zaggdop, zaggdop2, zaggdop3
       REAL(wp) ::   zaggtmp, zfact, zmax
+      REAL(wp) ::   zagg_13, zr13_doc
       REAL(wp) ::   zagg_15, zr15_doc
       CHARACTER (len=25) :: charout
       !!---------------------------------------------------------------------
@@ -94,6 +95,14 @@ CONTAINS
                   tra(ji,jj,jk,jpsfe) = tra(ji,jj,jk,jpsfe) - zaggfe
                   tra(ji,jj,jk,jpbfe) = tra(ji,jj,jk,jpbfe) + zaggfe
                   tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) - zaggdoc - zaggdoc2 - zaggdoc3
+                  IF ( ln_c13 ) THEN
+                     zr13_doc = ( (trb(ji,jj,jk,jp13doc)+rtrn) / (trb(ji,jj,jk,jpdoc)+rtrn) )
+                     zagg_13 = zagg * ( (trb(ji,jj,jk,jp13poc)+rtrn) / (trb(ji,jj,jk,jppoc)+rtrn) )
+                     tra(ji,jj,jk,jp13poc) = tra(ji,jj,jk,jp13poc) - zagg_13 + ( zaggdoc + zaggdoc3 ) * zr13_doc
+                     tra(ji,jj,jk,jp13goc) = tra(ji,jj,jk,jp13goc) + zagg_13 + zaggdoc2 * zr13_doc
+                     tra(ji,jj,jk,jp13doc) = tra(ji,jj,jk,jp13doc) - ( zaggdoc + zaggdoc2 + zaggdoc3 ) * zr13_doc
+                  ENDIF
+
                   IF ( ln_n15 ) THEN
                      ! zagg = total aggregration of sinking POC --> GOC
                      ! zaggdoc = aggregation of DOC --> POC

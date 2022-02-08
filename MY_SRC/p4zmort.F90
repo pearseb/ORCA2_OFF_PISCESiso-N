@@ -27,6 +27,7 @@ MODULE p4zmort
    REAL(wp), PUBLIC ::   wchldm   !:
    REAL(wp), PUBLIC ::   mprat    !:
    REAL(wp), PUBLIC ::   mprat2   !:
+   REAL(wp), PUBLIC ::   e13c_cal !:
 
    !!----------------------------------------------------------------------
    !! NEMO/TOP 4.0 , NEMO Consortium (2018)
@@ -66,6 +67,7 @@ CONTAINS
       REAL(wp) ::   zsizerat, zcompaph
       REAL(wp) ::   zfactfe, zfactch, zprcaca, zfracal
       REAL(wp) ::   ztortp , zrespp , zmortp 
+      REAL(wp) ::   zr13_phy, zr13_dic
       REAL(wp) ::   zr15_phy
       CHARACTER (len=25) ::   charout
       !!---------------------------------------------------------------------
@@ -73,6 +75,9 @@ CONTAINS
       IF( ln_timing )   CALL timing_start('p4z_nano')
       !
       prodcal(:,:,:) = 0._wp   ! calcite production variable set to zero
+      IF ( ln_c13 ) THEN
+         prodcal13(:,:,:) = 0._wp   ! calcite production variable set to zero
+      ENDIF
       DO jk = 1, jpkm1
          DO jj = 1, jpj
             DO ji = 1, jpi
@@ -114,6 +119,16 @@ CONTAINS
                prodgoc(ji,jj,jk) = prodgoc(ji,jj,jk) + zfracal * zmortp
                tra(ji,jj,jk,jpsfe) = tra(ji,jj,jk,jpsfe) + ( 1. - zfracal ) * zmortp * zfactfe
                tra(ji,jj,jk,jpbfe) = tra(ji,jj,jk,jpbfe) + zfracal * zmortp * zfactfe
+               IF( ln_c13 ) THEN
+                  zr13_phy = ( (trb(ji,jj,jk,jp13phy)+rtrn) / (trb(ji,jj,jk,jpphy)+rtrn) )
+                  zr13_dic = ( (trb(ji,jj,jk,jp13dic)+rtrn) / (trb(ji,jj,jk,jpdic)+rtrn) )
+                  tra(ji,jj,jk,jp13phy) = tra(ji,jj,jk,jp13phy) - zmortp * zr13_phy
+                  tra(ji,jj,jk,jp13goc) = tra(ji,jj,jk,jp13goc) + zfracal * zmortp * zr13_phy
+                  tra(ji,jj,jk,jp13poc) = tra(ji,jj,jk,jp13poc) + ( 1. - zfracal ) * zmortp * zr13_phy
+                  tra(ji,jj,jk,jp13dic) = tra(ji,jj,jk,jp13dic) - zprcaca * zr13_dic * (1. - e13c_cal/1000.)
+                  tra(ji,jj,jk,jp13cal) = tra(ji,jj,jk,jp13cal) + zprcaca * zr13_dic * (1. - e13c_cal/1000.)
+                  prodcal13(ji,jj,jk) = prodcal13(ji,jj,jk) + zprcaca * zr13_dic * (1. - e13c_cal/1000.)
+               ENDIF
                IF( ln_n15 ) THEN
                   zr15_phy = ( (trb(ji,jj,jk,jp15phy)+rtrn) / (trb(ji,jj,jk,jpphy)+rtrn) )
                   tra(ji,jj,jk,jp15phy) = tra(ji,jj,jk,jp15phy) - zmortp * zr15_phy
@@ -147,7 +162,7 @@ CONTAINS
       REAL(wp) ::   zfactfe,zfactsi,zfactch, zcompadi
       REAL(wp) ::   zrespp2, ztortp2, zmortp2
       REAL(wp) ::   zlim2, zlim1
-      REAL(wp) ::   zr15_dia
+      REAL(wp) ::   zr15_dia, zr13_dia
       CHARACTER (len=25) ::   charout
       !!---------------------------------------------------------------------
       !
@@ -196,6 +211,12 @@ CONTAINS
                prodgoc(ji,jj,jk) = prodgoc(ji,jj,jk) + zrespp2 + 0.5 * ztortp2
                tra(ji,jj,jk,jpsfe) = tra(ji,jj,jk,jpsfe) + 0.5 * ztortp2 * zfactfe
                tra(ji,jj,jk,jpbfe) = tra(ji,jj,jk,jpbfe) + ( zrespp2 + 0.5 * ztortp2 ) * zfactfe
+               IF ( ln_c13 ) THEN
+                  zr13_dia = ( (trb(ji,jj,jk,jp13dia)+rtrn) / (trb(ji,jj,jk,jpdia)+rtrn) )
+                  tra(ji,jj,jk,jp13dia) = tra(ji,jj,jk,jp13dia) - zmortp2 * zr13_dia
+                  tra(ji,jj,jk,jp13goc) = tra(ji,jj,jk,jp13goc) + ( zrespp2 + 0.5 * ztortp2 ) * zr13_dia
+                  tra(ji,jj,jk,jp13poc) = tra(ji,jj,jk,jp13poc) +  0.5 * ztortp2 * zr13_dia
+               ENDIF
                IF ( ln_n15 ) THEN
                   zr15_dia = ( (trb(ji,jj,jk,jp15dia)+rtrn) / (trb(ji,jj,jk,jpdia)+rtrn) )
                   tra(ji,jj,jk,jp15dia) = tra(ji,jj,jk,jp15dia) - zmortp2 * zr15_dia
@@ -231,7 +252,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER ::   ios   ! Local integer
       !
-      NAMELIST/namp4zmort/ wchl, wchld, wchldm, mprat, mprat2
+      NAMELIST/namp4zmort/ wchl, wchld, wchldm, mprat, mprat2, e13c_cal
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -255,6 +276,7 @@ CONTAINS
          WRITE(numout,*) '      maximum quadratic mortality of diatoms      wchldm =', wchldm
          WRITE(numout,*) '      phytoplankton mortality rate                mprat  =', mprat
          WRITE(numout,*) '      Diatoms mortality rate                      mprat2 =', mprat2
+         WRITE(numout,*) '      C13 calcification fractionation             e13c_cal =', e13c_cal
       ENDIF
       !
    END SUBROUTINE p4z_mort_init

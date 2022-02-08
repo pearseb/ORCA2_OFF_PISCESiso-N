@@ -169,6 +169,15 @@ CONTAINS
         IF( cltra == 'PCHL'     )   jppch = jn      !: Diatoms Chlorophyll Concentration
         IF( cltra == 'PFe'      )   jppfe = jn      !: Picophytoplankton Fe biomass
         IF( cltra == 'LGW'      )   jplgw = jn      !: Weak ligands
+        IF( cltra == 'POC_13'   )   jp13poc = jn    !: 13C small particulate organic concentration
+        IF( cltra == 'GOC_13'   )   jp13goc = jn    !: 13C large particulate organic concentration
+        IF( cltra == 'DOC_13'   )   jp13doc = jn    !: 13C dissolved ogranic carbon concentration
+        IF( cltra == 'PHY_13'   )   jp13phy = jn    !: 13C phytoplankton concentration
+        IF( cltra == 'PHY2_13'  )   jp13dia = jn    !: 13C diatom concentration 
+        IF( cltra == 'ZOO_13'   )   jp13zoo = jn    !: 13C zooplankton concentration
+        IF( cltra == 'ZOO2_13'  )   jp13mes = jn    !: 13C mesozooplankton concentration
+        IF( cltra == 'DIC_13'   )   jp13dic = jn    !: 13C dissolved inorganic concentration
+        IF( cltra == 'CaCO3_13' )   jp13cal = jn    !: 13C calcite concentration
         IF( cltra == 'POC_15'   )   jp15poc = jn    !: 15N small particulate organic concentration
         IF( cltra == 'GOC_15'   )   jp15goc = jn    !: 15N large particulate organic concentration
         IF( cltra == 'DOC_15'   )   jp15doc = jn    !: 15N dissolved ogranic carbon concentration
@@ -229,6 +238,17 @@ CONTAINS
          trn(:,:,:,jpno3) = no3
          trn(:,:,:,jpno2) = bioma0
          trn(:,:,:,jpnh4) = bioma0
+         IF ( ln_c13 ) THEN
+            trn(:,:,:,jp13poc) = trn(:,:,:,jppoc) 
+            trn(:,:,:,jp13phy) = trn(:,:,:,jpphy)
+            trn(:,:,:,jp13zoo) = trn(:,:,:,jpzoo) 
+            trn(:,:,:,jp13doc) = trn(:,:,:,jpdoc)
+            trn(:,:,:,jp13dia) = trn(:,:,:,jpdia)
+            trn(:,:,:,jp13mes) = trn(:,:,:,jpmes)
+            trn(:,:,:,jp13goc) = trn(:,:,:,jpgoc)
+            trn(:,:,:,jp13dic) = trn(:,:,:,jpdic)
+            trn(:,:,:,jp13cal) = trn(:,:,:,jpcal)
+         ENDIF
          IF ( ln_n15 ) THEN
             trn(:,:,:,jp15poc) = bioma0
             trn(:,:,:,jp15phy) = bioma0

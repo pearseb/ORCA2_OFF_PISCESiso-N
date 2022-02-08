@@ -24,6 +24,7 @@ MODULE sms_pisces
    LOGICAL  ::  ln_p5z            !: Flag to use PISCES  quota model
    LOGICAL  ::  ln_ligand         !: Flag to enable organic ligands
    LOGICAL  ::  ln_sediment       !: Flag to enable sediment module
+   LOGICAL  ::  ln_c13            !: Flag to enable carbon isotope module
    LOGICAL  ::  ln_n15            !: Flag to enable nitrogen isotope module
    LOGICAL  ::  ln_o18            !: Flag to enable oxygen isotope module
 
@@ -103,6 +104,7 @@ MODULE sms_pisces
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   orem       !: ??
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   xdiss      !: ??
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   prodcal    !: Calcite production
+   REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   prodcal13  !: Calcite C13 production
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   prodpoc    !: Calcite production
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   conspoc    !: Calcite production
    REAL(wp), ALLOCATABLE, SAVE, DIMENSION(:,:,:) ::   prodgoc    !: Calcite production
@@ -175,7 +177,10 @@ CONTAINS
          !* Sinkong speed
          ALLOCATE( wsbio3 (jpi,jpj,jpk) , wsbio4 (jpi,jpj,jpk),     &
             &                             STAT=ierr(7) )   
-         ! 
+         !
+         IF( ln_c13 ) THEN
+           ALLOCATE( prodcal13(jpi,jpj,jpk)  ,                    STAT=ierr(8) )
+         ENDIF 
          IF( ln_ligand ) THEN
            ALLOCATE( plig(jpi,jpj,jpk)  ,                         STAT=ierr(8) )
          ENDIF

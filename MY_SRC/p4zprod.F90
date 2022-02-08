@@ -17,6 +17,8 @@ MODULE p4zprod
    USE p4zlim          ! Co-limitations of differents nutrients
    USE prtctl_trc      ! print control for debugging
    USE iom             ! I/O manager
+   USE p4zsbc          ! external source of nutrients / senexp
+   USE p4zche          ! for c13 fractionations
 
    IMPLICIT NONE
    PRIVATE
@@ -38,6 +40,9 @@ MODULE p4zprod
    REAL(wp), PUBLIC ::   fecdm        !:
    REAL(wp), PUBLIC ::   grosip       !:
    REAL(wp), PUBLIC ::   relno3max    !:
+   REAL(wp), PUBLIC ::   e13c_min     !:
+   REAL(wp), PUBLIC ::   e13c_max     !:
+   INTEGER, PUBLIC  ::   c13_frac     !: pjb - parameterisation for biological fractionation
    REAL(wp), PUBLIC ::   e15n_upn     !: fractionation associated with uptake across the cell membrane
    REAL(wp), PUBLIC ::   e15n_upd     !: fractionation associated with uptake across the cell membrane
    REAL(wp), PUBLIC ::   e15n_efn     !: fractionation associated with efflux across the cell membrane
@@ -84,6 +89,8 @@ CONTAINS
       REAL(wp) ::   zmxltst, zmxlday
       REAL(wp) ::   zrum, zcodel, zargu, zval, zfeup, chlcnm_n, chlcdm_n
       REAL(wp) ::   zfact, zton, znitrate2ton
+      REAL(wp) ::   zr13_dic, zr13, zr13_2
+      REAL(wp) ::   ztc, zft, zrhop, zfco3, zbot, zdic, zph, zalka, zalk, zah2
       REAL(wp) ::   zr15n_no3, zr15d_no3, zr15n_no2, zr15d_no2, zr15_nh4
       REAL(wp) ::   zr18n_no3, zr18d_no3, zr18n_no2, zr18d_no2, d18Oh2o
       CHARACTER (len=25) :: charout
@@ -99,6 +106,9 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zrelno3n, zrelno3d  ! release of nitrate after uptake of nitrate
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zreluptn, zreluptd  ! release of nitrate : gross uptake of nitrate
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zproregn, zproregd
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: za_g, za_dic, zh2co3, z_co3
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprorcan13, zprorcad13
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: ze13cprod1, ze13cprod2
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprono3n15, zprono3d15
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zprono2n15, zprono2d15
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zproregn15, zproregd15
@@ -121,7 +131,10 @@ CONTAINS
       zproregn(:,:,:) = 0._wp ; zproregd(:,:,:) = 0._wp
       zprbio  (:,:,:) = 0._wp ; zprdch  (:,:,:) = 0._wp ; zprnch  (:,:,:) = 0._wp 
       zmxl_fac(:,:,:) = 0._wp ; zmxl_chl(:,:,:) = 0._wp 
-
+      IF( ln_c13 ) THEN
+           ze13cprod1(:,:,:)  = 0.     ;      ze13cprod2(:,:,:) = 0.
+           zprorcan13(:,:,:)  = 0.     ;      zprorcad13(:,:,:) = 0.
+      ENDIF
       IF( ln_n15 ) THEN
          ze15nno3n(:,:,:) = 0._wp  ; ze15nno3d(:,:,:) = 0._wp  ; ze15nnh4(:,:,:) = 0._wp
          zprono3n15(:,:,:) = 0._wp ; zprono3d15(:,:,:) = 0._wp
@@ -175,6 +188,9 @@ CONTAINS
             DO ji = 1, jpi
                IF( etot_ndcy(ji,jj,jk) > 1.E-3 ) THEN
                   ztn         = MAX( 0., tsn(ji,jj,jk,jp_tem) - 15. )
+                  if ( ln_senexp ) then
+                     ztn         = MAX( 0., senexp(ji,jj,jk) * tmask(ji,jj,jk) - 15. )
+                  endif
                   zadap       = xadap * ztn / ( 2.+ ztn )
                   zconctemp   = MAX( 0.e0 , trb(ji,jj,jk,jpdia) - xsizedia )
                   zconctemp2  = trb(ji,jj,jk,jpdia) - zconctemp
@@ -265,6 +281,59 @@ CONTAINS
          END DO
       END DO
 
+      IF ( ln_c13 ) THEN
+
+!      DO jm = 1,10
+         DO jk = 1,jpkm1
+            DO jj = 1,jpj
+               DO ji = 1,jpi
+
+                  ! DUMMY VARIABLES FOR DIC, H+, AND BORATE
+                  zbot  = borat(ji,jj,jk)
+                  zrhop = rhop(ji,jj,jk) / 1000. + rtrn
+                  zdic  = trb(ji,jj,jk,jpdic) / zrhop
+                  zph   = MAX( hi(ji,jj,jk), 1.e-10 ) / zrhop
+                  zalka = trb(ji,jj,jk,jptal) / zrhop
+
+                  ! CALCULATE [ALK]([CO3--], [HCO3-])
+                  zalk  = zalka - (  akw3(ji,jj,jk) / zph - zph + zbot / ( 1.+ zph / akb3(ji,jj,jk) )  )
+
+                  ! CALCULATE [H+] AND [H2CO3]
+                  zah2   = SQRT(  (zdic-zalk)**2 + 4.* ( zalk * ak23(ji,jj,jk)        &
+                  &                               / ak13(ji,jj,jk) ) * ( 2.*zdic - zalk )  )
+                  zah2   = 0.5 * ak13(ji,jj,jk) / zalk * ( ( zdic - zalk ) + zah2 )
+                  zh2co3(ji,jj,jk) = ( 2.* zdic - zalk ) / ( 2.+ ak13(ji,jj,jk) / zah2) * zrhop
+                  z_co3(ji,jj,jk) = zalk / ( 2. + zah2 / ak23(ji,jj,jk) ) * zrhop
+                  hi(ji,jj,jk)   = zah2 * zrhop
+
+               ENDDO
+            ENDDO
+         ENDDO
+!      ENDDO
+
+      DO jk = 1,jpkm1
+         DO jj = 1,jpj
+            DO ji = 1,jpi
+
+               ! Compute fractionation factors for C13 from Zhang et al. 1995
+
+               zfco3 = MAX(0.05,( (z_co3(ji,jj,jk)+rtrn) / (trb(ji,jj,jk,jpdic)+rtrn) ))
+               zfco3 = MIN(0.2 , zfco3)
+               ztc = MIN( 35., tsn(ji,jj,jk,jp_tem) )
+               zft = MIN(25.,ztc)
+               zft = MAX( 5.,zft)
+               za_g(ji,jj,jk) =   1. + ( 0.0049 * zft - 1.31 ) / 1000.
+               za_dic(ji,jj,jk) = 1. + ( 0.0144 * zft * zfco3 - 0.107 * zft + 10.53 ) / 1000.
+
+
+            ENDDO
+         ENDDO
+      ENDDO
+
+      ENDIF  ! ln_c13
+
+
+
       ! Computation of the various production terms 
       DO jk = 1, jpkm1
          DO jj = 1, jpj
@@ -335,6 +404,9 @@ CONTAINS
                   zprod    = rday * zprorcan(ji,jj,jk) * zprnch(ji,jj,jk) * xlimphy(ji,jj,jk)
                   zprochln = chlcmin * 12. * zprorcan (ji,jj,jk)
                   chlcnm_n   = MIN ( chlcnm, ( chlcnm / (1. - 1.14 / 43.4 *tsn(ji,jj,jk,jp_tem))) * (1. - 1.14 / 43.4 * 20.))
+                  if ( ln_senexp ) then
+                     chlcnm_n   = MIN ( chlcnm, ( chlcnm / (1. - 1.14 / 43.4 *senexp(ji,jj,jk)*tmask(ji,jj,jk))) * (1. - 1.14 / 43.4 * 20.))
+                  endif
                   zprochln = zprochln + (chlcnm_n-chlcmin) * 12. * zprod / &
                                         & (  zpislopeadn(ji,jj,jk) * znanotot +rtrn)
                   !  production terms for diatoms ( chlorophyll )
@@ -342,6 +414,9 @@ CONTAINS
                   zprod    = rday * zprorcad(ji,jj,jk) * zprdch(ji,jj,jk) * xlimdia(ji,jj,jk)
                   zprochld = chlcmin * 12. * zprorcad(ji,jj,jk)
                   chlcdm_n   = MIN ( chlcdm, ( chlcdm / (1. - 1.14 / 43.4 * tsn(ji,jj,jk,jp_tem))) * (1. - 1.14 / 43.4 * 20.))
+                  if ( ln_senexp ) then
+                     chlcdm_n   = MIN ( chlcdm, ( chlcdm / (1. - 1.14 / 43.4 * senexp(ji,jj,jk)*tmask(ji,jj,jk))) * (1. - 1.14 / 43.4 * 20.))
+                  endif
                   zprochld = zprochld + (chlcdm_n-chlcmin) * 12. * zprod / &
                                         & ( zpislopeadd(ji,jj,jk) * zdiattot +rtrn )
                   !   Update the arrays TRA which contain the Chla sources and sinks
@@ -381,6 +456,45 @@ CONTAINS
                  tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) + rno3 * ( zprono3n(ji,jj,jk) + zprono3d(ji,jj,jk)   &
                  &                     + zprono2n(ji,jj,jk) + zprono2d(ji,jj,jk) )                              &
                  &                     - rno3 * ( zproregn(ji,jj,jk) + zproregd(ji,jj,jk) )
+                 IF ( ln_c13 ) THEN
+                    zr13_dic = ( (trb(ji,jj,jk,jp13dic)+rtrn) / (trb(ji,jj,jk,jpdic)+rtrn) )
+
+                    ! Calculate biological fractionation of Carbon to biomass by
+                    ! phytoplankton (CO2(aq) --> POC)
+                    !   0 --> Popp et al. (1989) parameterisation
+                    !   1 --> Laws et al. (1995) parameterisation
+                    IF ( c13_frac == 0 ) THEN
+                      ze13cprod1(ji,jj,jk) = ( 17.0*log10(zh2co3(ji,jj,jk)*1e6) + 3.4 )
+                      ze13cprod2(ji,jj,jk) = ( 17.0*log10(zh2co3(ji,jj,jk)*1e6) + 3.4 )
+                    ELSEIF ( c13_frac == 1 ) THEN
+                      ze13cprod1(ji,jj,jk) = ( (86400 * zprorcan(ji,jj,jk)) / (trb(ji,jj,jk,jpphy) + rtrn) /  &
+                      &             ( rfact2 * (zh2co3(ji,jj,jk)/1025*1e9 + rtrn)) - 0.371 ) / (-0.015)
+                      ze13cprod2(ji,jj,jk) = ( (86400 * zprorcad(ji,jj,jk)) / (trb(ji,jj,jk,jpdia) + rtrn) /  &
+                      &             ( rfact2 * (zh2co3(ji,jj,jk)/1025*1e9 + rtrn)) - 0.371 ) / (-0.015)
+                    ENDIF
+
+                    ! Mulitply the biological fractionation (CO2(aq) --> POC) by the equilibrium
+                    ! fractionation (DIC --> CO2(aq)) to get full biological fractionation effect (DIC --> POC)
+                    ze13cprod1(ji,jj,jk) = max(e13c_min, min(e13c_max,                                        &
+                    &                      ze13cprod1(ji,jj,jk) *                                             &
+                    &                      ( (za_g(ji,jj,jk)+rtrn) / (za_dic(ji,jj,jk)+rtrn) ) ))
+                    ze13cprod2(ji,jj,jk) = max(e13c_min, min(e13c_max,                                        &
+                    &                      ze13cprod2(ji,jj,jk) *                                             &
+                    &                      ( (za_g(ji,jj,jk)+rtrn) / (za_dic(ji,jj,jk)+rtrn) ) ))
+
+                    ! Multiply by the ratio of insitu C13/C12 to get actual change in 13C
+                    zr13   = ( 1.0 - ze13cprod1(ji,jj,jk)/1000.0 ) * zr13_dic
+                    zr13_2 = ( 1.0 - ze13cprod2(ji,jj,jk)/1000.0 ) * zr13_dic
+
+                    tra(ji,jj,jk,jp13phy) = tra(ji,jj,jk,jp13phy) + zprorcan(ji,jj,jk) * texcretn * zr13
+                    tra(ji,jj,jk,jp13dia) = tra(ji,jj,jk,jp13dia) + zprorcad(ji,jj,jk) * texcretd * zr13_2
+                    tra(ji,jj,jk,jp13doc) = tra(ji,jj,jk,jp13doc) + zprorcan(ji,jj,jk) * excretn * zr13       &
+                    &                                             + zprorcad(ji,jj,jk) * excretd * zr13_2
+                    tra(ji,jj,jk,jp13dic) = tra(ji,jj,jk,jp13dic) - zprorcan(ji,jj,jk) * zr13                 &
+                    &                                             - zprorcad(ji,jj,jk) * zr13_2
+                    zprorcan13(ji,jj,jk) = zprorcan(ji,jj,jk) * zr13 
+                    zprorcad13(ji,jj,jk) = zprorcad(ji,jj,jk) * zr13_2
+                 ENDIF
                  IF ( ln_n15 ) THEN
                     ! The organism-level isotope effect of nitrate assimilation is calculated following Karsh
                     ! et al. (2012; Envir. Sci. Tech.) and Karsh et al. (2014; Geochim. et Cosmochim. Acta),
@@ -438,6 +552,9 @@ CONTAINS
                     ! ------------------------------
                     ! estimate d18O of seawater (coefficients from regression analysis of Legrande & Schmidt 2006 database)
                     d18Oh2o = (0.0333*tsn(ji,jj,jk,jp_tem) + 0.424*tsn(ji,jj,jk,jp_sal) - 14.8255)
+                    if ( ln_senexp ) then
+                       d18Oh2o = (0.0333*senexp(ji,jj,jk)*tmask(ji,jj,jk) + 0.424*tsn(ji,jj,jk,jp_sal) - 14.8255)
+                    endif
                     ! calculate isotope signature associated with photosynthetic oxygen production
                     !   No fractionation, takes on d18O of seawater (Guy et al. 1993 Plant Phys; Helman et al. 2005 Plant Phys)
                     tra(ji,jj,jk,jp18oxy) = tra(ji,jj,jk,jp18oxy) + ( o2ut * ( zproregn(ji,jj,jk) + zproregd(ji,jj,jk))  &
@@ -501,6 +618,13 @@ CONTAINS
               !
               zw3d(:,:,:) = zprorcad(:,:,:) * zfact * tmask(:,:,:)  ! primary production by diatomes
               CALL iom_put( "PPPHYD"  , zw3d )
+          ENDIF
+          IF( iom_use( "PPPHYN_13" ) .OR. iom_use( "PPPHYD_13" ) )  THEN
+              zw3d(:,:,:) = zprorcan13(:,:,:) * zfact * tmask(:,:,:)  ! primary production by nanophyto
+              CALL iom_put( "PPPHYN_13"  , zw3d )
+              !
+              zw3d(:,:,:) = zprorcad13(:,:,:) * zfact * tmask(:,:,:)  ! primary production by diatomes
+              CALL iom_put( "PPPHYD_13"  , zw3d )
           ENDIF
           IF( iom_use( "PPNEWN" ) .OR. iom_use( "PPNEWD" ) )  THEN
               zw3d(:,:,:) = (zprono3n(:,:,:)+zprono2n(:,:,:)) * zfact * tmask(:,:,:)  ! no3 primary production by nanophyto
@@ -645,8 +769,9 @@ CONTAINS
       !
       NAMELIST/namp4zprod/ pislopen, pisloped, xadap, bresp, excretn, excretd,  &
          &                 chlcnm, chlcdm, chlcmin, fecnm, fecdm, grosip, relno3max, &
-         &                 e15n_upn, e15n_upd, e15n_efn, e15n_efd, e15n_nar, e15n_ama, &
-         &                 e18o_upn, e18o_upd, e18o_efn, e18o_efd, e18o_nar, e18oxy_pro
+         &                 e13c_min, e13c_max, c13_frac, e15n_upn, e15n_upd, e15n_efn, &
+         &                 e15n_efd, e15n_nar, e15n_ama, e18o_upn, e18o_upd, e18o_efn, &
+         &                 e18o_efd, e18o_nar, e18oxy_pro
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN                         ! control print
@@ -678,6 +803,9 @@ CONTAINS
          WRITE(numout,*) '      Maximum Fe/C in nanophytoplankton         fecnm        =', fecnm
          WRITE(numout,*) '      Minimum Fe/C in diatoms                   fecdm        =', fecdm
          WRITE(numout,*) '      Maximum efflux:uptake of nitrate          relno3max    =', relno3max
+         WRITE(numout,*) '      C13 assimilation fractionation min        e13c_min     =', e13c_min
+         WRITE(numout,*) '      C13 assimilation fractionation max        e13c_max     =', e13c_max
+         WRITE(numout,*) '      (0) = Popp (1989); (1) = Laws (1995)      c13_frac     =', c13_frac
          WRITE(numout,*) '      N15 fractionation by NO3 uptake (nanos)   e15n_upn     =', e15n_upn
          WRITE(numout,*) '      N15 fractionation by NO3 uptake (diats)   e15n_upd     =', e15n_upd
          WRITE(numout,*) '      N15 fractionation by NO3 efflux (nanos)   e15n_efn     =', e15n_efn

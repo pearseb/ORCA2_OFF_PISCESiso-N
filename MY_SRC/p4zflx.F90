@@ -31,6 +31,7 @@ MODULE p4zflx
 
    !                                 !!** Namelist  nampisext  **
    REAL(wp)          ::   atcco2      !: pre-industrial atmospheric [co2] (ppm) 	
+   REAL(wp)          ::   d13c_co2    !: d13c of atmospheric [co2] (ppm)
    LOGICAL           ::   ln_co2int   !: flag to read in a file and interpolate atmospheric pco2 or not
    CHARACTER(len=34) ::   clname      !: filename of pco2 values
    INTEGER           ::   nn_offset   !: Offset model-data start year (default = 0) 
@@ -80,9 +81,11 @@ CONTAINS
       REAL(wp) ::   zvapsw, zsal, zfco2, zxc2, xCO2approx, ztkel, zfugcoeff
       REAL(wp) ::   zph, zdic, zsch_o2, zsch_co2
       REAL(wp) ::   zyr_dec, zdco2dt
+      REAL(wp) ::   zr13_dic, zft, zfco3
       REAL(wp) ::   zr18_oxy
       CHARACTER (len=25) ::   charout
       REAL(wp), DIMENSION(jpi,jpj) ::   zkgco2, zkgo2, zh2co3, zoflx, zoflx2, zpco2atm  
+      REAL(wp), DIMENSION(jpi,jpj) ::   za_dic, za_g, z_co3
       REAL(wp), DIMENSION(jpi,jpj) ::   zoflx18
       REAL(wp), ALLOCATABLE, DIMENSION(:,:) ::   zw2d
       !!---------------------------------------------------------------------
@@ -146,6 +149,17 @@ CONTAINS
             ! compute gas exchange for CO2 and O2
             zkgco2(ji,jj) = zkgwan * SQRT( 660./ zsch_co2 )
             zkgo2 (ji,jj) = zkgwan * SQRT( 660./ zsch_o2 )
+
+            IF ( ln_c13 ) THEN
+               ! Compute fractionation factors for C13 from Zhang et al. 1995
+               zfco3 = MAX(0.05, ( (z_co3(ji,jj)+rtrn) / (trb(ji,jj,1,jpdic)+rtrn) ) )
+               zfco3 = MIN(0.2 , zfco3)
+               zft = MIN( 25., ztc )
+               zft = MAX(  5., zft )
+               za_g  (ji,jj) = 1. + ( 0.0049 * zft - 1.31 ) / 1000.
+               za_dic(ji,jj) = 1. + ( 0.0144 * zft * zfco3  - 0.107 * zft + 10.53 ) / 1000.
+            ENDIF
+
          END DO
       END DO
 
@@ -167,6 +181,18 @@ CONTAINS
             oce_co2(ji,jj) = ( zfld - zflu ) * rfact2 * e1e2t(ji,jj) * tmask(ji,jj,1) * 1000.
             ! compute the trend
             tra(ji,jj,1,jpdic) = tra(ji,jj,1,jpdic) + ( zfld - zflu ) * rfact2 / e3t_n(ji,jj,1) * tmask(ji,jj,1)
+
+            IF ( ln_c13 ) THEN
+               zr13_dic = ( (trb(ji,jj,1,jp13dic)+rtrn) / (trb(ji,jj,1,jpdic)+rtrn) )
+               !print*, zr13_dic, za_dic(ji,jj), za_g(ji,jj), oce_c13(ji,jj)
+
+               oce_c13(ji,jj) = ( zfld * (1.0 + d13c_co2/1000.0) -                &
+               &                  zflu * zr13_dic / (za_dic(ji,jj)+rtrn) )        &
+               &                 * 0.99912 * za_g(ji,jj) * rfact2 * tmask(ji,jj,1)
+
+               tra(ji,jj,1,jp13dic) = tra(ji,jj,1,jp13dic) + oce_c13(ji,jj) / e3t_n(ji,jj,1)
+            ENDIF
+
 
             ! Compute O2 flux 
             zfld16 = patm(ji,jj) * chemo2(ji,jj,1) * zkgo2(ji,jj)          ! (mol/L) * (m/s)
@@ -211,6 +237,10 @@ CONTAINS
             zw2d(:,:) = oce_co2(:,:) / e1e2t(:,:) * rfact2r
             CALL iom_put( "Cflx"     , zw2d ) 
          ENDIF
+         IF( iom_use( "C13flx"  ) )  THEN
+            zw2d(:,:) = oce_c13(:,:) * 1000 * rfact2r
+            CALL iom_put( "C13flx"     , zw2d )
+         ENDIF
          IF( iom_use( "Oflx"  ) )  THEN
             zw2d(:,:) =  zoflx(:,:) * 1000 * tmask(:,:,1)
             CALL iom_put( "Oflx" , zw2d )
@@ -251,7 +281,7 @@ CONTAINS
       !!----------------------------------------------------------------------
       INTEGER ::   jm, ios   ! Local integer 
       !!
-      NAMELIST/nampisext/ln_co2int, atcco2, clname, nn_offset, d18o_oxy, e18oxy_eq, e18oxy_k
+      NAMELIST/nampisext/ln_co2int, atcco2, d13c_co2, clname, nn_offset, d18o_oxy, e18oxy_eq, e18oxy_k
       !!----------------------------------------------------------------------
       IF(lwp) THEN
          WRITE(numout,*)
@@ -277,11 +307,16 @@ CONTAINS
       IF( .NOT.ln_co2int .AND. .NOT.ln_presatmco2 ) THEN
          IF(lwp) THEN                         ! control print
             WRITE(numout,*) '         Constant Atmospheric pCO2 value               atcco2    =', atcco2
+            WRITE(numout,*) '         Constant Atm. d13C of pCO2 value              d13c_co2  =', d13c_co2
+            WRITE(numout,*) '         Constant atmospheric d18O of dioxygen         d18o_oxy  =', d18o_oxy
+            WRITE(numout,*) '         18O fractionation - equilibrium gas exchange  e18oxy_eq =', e18oxy_eq
+            WRITE(numout,*) '         18O fractionation - kinetic gas exchange      e18oxy_k  =', e18oxy_k
          ENDIF
          satmco2(:,:)  = atcco2      ! Initialisation of atmospheric pco2
       ELSEIF( ln_co2int .AND. .NOT.ln_presatmco2 ) THEN
          IF(lwp)  THEN
             WRITE(numout,*) '         Constant Atmospheric pCO2 value               atcco2    =', atcco2
+            WRITE(numout,*) '         Constant Atm. d13C of pCO2 value              d13c_co2  =', d13c_co2
             WRITE(numout,*) '         Atmospheric pCO2 value  from file             clname    =', TRIM( clname )
             WRITE(numout,*) '         Offset model-data start year                  nn_offset =', nn_offset
             WRITE(numout,*) '         Constant atmospheric d18O of dioxygen         d18o_oxy  =', d18o_oxy
@@ -311,6 +346,7 @@ CONTAINS
       ENDIF
       !
       oce_co2(:,:)  = 0._wp                ! Initialization of Flux of Carbon
+      oce_c13(:,:)  = 0._wp                ! Initialization of Flux of Carbon-13
       t_oce_co2_flx = 0._wp
       t_atm_co2_flx = 0._wp
       !

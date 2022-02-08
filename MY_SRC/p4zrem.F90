@@ -19,6 +19,7 @@ MODULE p4zrem
    USE p4zlim
    USE prtctl_trc      !  print control for debugging
    USE iom             !  I/O manager
+   USE p4zsbc          !  pjb for senexp
 
 
    IMPLICIT NONE
@@ -119,12 +120,14 @@ CONTAINS
       REAL(wp) ::   zammonic, zoxyremn, zoxyremp, znitrate2ton
       REAL(wp) ::   zosil, ztem, zolimic, zolimin, zolimip, zdenitrn, zdenitrp
       REAL(wp) ::   knobno2a, mu_noba
+      REAL(wp) ::   zr13_doc
       REAL(wp) ::   zr15_doc, zr15_no3, zr15_no2, zr15_nh4
       REAL(wp) ::   zr18_no3, zr18_no2, zr18_oxy
       REAL(wp) ::   d18Oh2o, tk, zph, k_h2ono2, e18o_eq
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(jpi,jpj    ) :: ztempbac
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zdepbac, zolimi, zdepprod, zfacsi, zfacsib, zdepeff, zfebact
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zremindic, zremindic13
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zolimi15
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: mu_aoaa, mu_aoamax, zlimaoan, zlimaoaf, zlimaoap, zlimaoai
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zlimnobn, zlimnobf, zlimnobi
@@ -141,7 +144,11 @@ CONTAINS
       zfebact(:,:,:)  = 0._wp
       zfacsi(:,:,:)   = xsilab
       zolimi(:,:,:) = 0._wp
+      zremindic(:,:,:)  = 0._wp
 
+      IF ( ln_c13 ) THEN
+         zremindic13(:,:,:)  = 0._wp
+      ENDIF
       IF ( ln_n15 ) THEN
          zolimi15(:,:,:)  = 0._wp
       ENDIF
@@ -230,12 +237,21 @@ CONTAINS
                   tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) - zolimi(ji,jj,jk) - denitr(ji,jj,jk) - zaltrem(ji,jj,jk)
                   tra(ji,jj,jk,jpoxy) = tra(ji,jj,jk,jpoxy) - zolimi(ji,jj,jk) * o2ut
                   tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) + zolimi(ji,jj,jk) + denitr(ji,jj,jk) + zaltrem(ji,jj,jk)
+                  zremindic(ji,jj,jk) = zolimi(ji,jj,jk) + denitr(ji,jj,jk) + zaltrem(ji,jj,jk)
                   tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) +                                                &
                   &                     rno3 * ( zolimi(ji,jj,jk) + zaltrem(ji,jj,jk + denitr(ji,jj,jk) )    &
                   &                     + rdenit * denitrno2(ji,jj,jk) )  ! removal of NO2-->N2 increases alkalinity
                         ! Wolf-Gladrow et al. (2007) 
                         ! Alkalinity increases by 1 mol for every 1 mol NO3/NO2 removed
                         ! Alkalinity decreases by 1 mol for every 1 mol NH4 removed
+                  IF( ln_c13) THEN
+                     zr13_doc = ( (trb(ji,jj,jk,jp13doc)+rtrn) / (trb(ji,jj,jk,jpdoc)+rtrn) )
+                     tra(ji,jj,jk,jp13doc) = tra(ji,jj,jk,jp13doc) -  & 
+                     &                       ( zolimi(ji,jj,jk) + denitr(ji,jj,jk) + zaltrem(ji,jj,jk) ) * zr13_doc
+                     tra(ji,jj,jk,jp13dic) = tra(ji,jj,jk,jp13dic) +  &
+                     &                       ( zolimi(ji,jj,jk) + denitr(ji,jj,jk) + zaltrem(ji,jj,jk) ) * zr13_doc
+                     zremindic13(ji,jj,jk) = ( zolimi(ji,jj,jk) + denitr(ji,jj,jk) + zaltrem(ji,jj,jk) ) * zr13_doc
+                  ENDIF
                   IF( ln_n15) THEN
                      ! get isotopic signatures of major tracers
                      zr15_doc = ( (trb(ji,jj,jk,jp15doc)+rtrn) / (trb(ji,jj,jk,jpdoc)+rtrn) )
@@ -339,6 +355,9 @@ CONTAINS
                  zlimaoai(ji,jj,jk) = 1.0 - (emoy(ji,jj,jk)+rtrn) / (emoy(ji,jj,jk) + kaoapar + rtrn)
                  if ( ln_munitrvar ) then
                  mu_aoaa(ji,jj,jk) = max(0.2, 0.029 * MAX( 0., tsn(ji,jj,jk,jp_tem) )  - 0.147 )
+                 if ( ln_senexp ) then
+                    mu_aoaa(ji,jj,jk) = max(0.2, 0.029 * MAX( 0., senexp(ji,jj,jk)*tmask(ji,jj,jk) )  - 0.147 )
+                 endif
                  mu_aoamax(ji,jj,jk) = mu_aoaa(ji,jj,jk) * xstep * trb(ji,jj,jk,jpnh4) 
                  zonitrnh4(ji,jj,jk) = mu_aoaa(ji,jj,jk) * xstep * trb(ji,jj,jk,jpnh4) *                 &
                &                      zlimaoan(ji,jj,jk) * zlimaoaf(ji,jj,jk) * zlimaoap(ji,jj,jk) * zlimaoai(ji,jj,jk)
@@ -514,6 +533,10 @@ CONTAINS
           IF( iom_use( "REMIN" ) )  THEN
               zw3d(:,:,:) = zolimi(:,:,:) * tmask(:,:,:) * zfact !  Remineralisation rate
               CALL iom_put( "REMIN"  , zw3d )
+          ENDIF
+          IF( iom_use( "REMINC" ) )  THEN
+              zw3d(:,:,:) = zremindic(:,:,:) * tmask(:,:,:) * zfact ! Remineralisation rate
+              CALL iom_put( "REMINC"  , zw3d )
           ENDIF
           IF( iom_use( "NITRNH4" ) )  THEN
               zw3d(:,:,:) = zonitrnh4(:,:,:) * rno3 * tmask(:,:,:) * zfact ! 1st step of nitrification

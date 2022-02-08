@@ -61,6 +61,7 @@ CONTAINS
       REAL(wp) ::  zo2, zno3, zflx, z1pdenit
       REAL(wp) ::  zsiloss, zcaloss, zws3, zws4, zwsc, zdep
       REAL(wp) ::  zwstpoc, zwstpon, zwstpop
+      REAL(wp) ::  zwstpoc13, zr13_rain, zr13_cal
       REAL(wp) ::  zwstpoc15, zr15_no3, zr15_rain, zr18_no3, zr18_oxy, d18Oh2o
       REAL(wp) ::  ztrfer, ztrpo4s, ztrdp, zwdust, zmudia, ztemp
       REAL(wp) ::  xdiano3, xdianh4
@@ -71,6 +72,8 @@ CONTAINS
       REAL(wp), DIMENSION(jpi,jpj    ) :: zsedcal, zsedsi, zsedc
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zsoufer, zlight
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zolimit, zolimit15
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zseddiss, zseddiss13
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: zsedremin, zsedremin13
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) :: ztrpo4, ztrdop, zirondep, zpdep
       REAL(wp), ALLOCATABLE, DIMENSION(:,:  ) :: zsidep, zironice
       !!---------------------------------------------------------------------
@@ -101,6 +104,12 @@ CONTAINS
       
       zolimit(:,:,:) = 0.e0
       zpdenit(:,:,:) = 0.e0
+      zseddiss(:,:,:) = 0.e0
+      zsedremin(:,:,:) = 0.e0
+      IF ( ln_c13 ) THEN
+         zseddiss13(:,:,:) = 0.e0
+         zsedremin13(:,:,:) = 0.e0
+      ENDIF
       IF ( ln_n15 ) THEN
          zdenrem15(:,:,:) = 0.e0
          zpdenit15(:,:,:) = 0.e0
@@ -185,6 +194,10 @@ CONTAINS
                   tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) +  rivdic(ji,jj) * rfact2
                   tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) +  ( rivalk(ji,jj) - rno3 * rivdin(ji,jj) ) * rfact2
                   tra(ji,jj,jk,jpdoc) = tra(ji,jj,jk,jpdoc) +  rivdoc(ji,jj) * rfact2
+                  IF ( ln_c13 ) THEN
+                     tra(ji,jj,jk,jp13dic) = tra(ji,jj,jk,jp13dic) + (1. + d13c_rivdic*1e-3)*rivdic(ji,jj) * rfact2
+                     tra(ji,jj,jk,jp13doc) = tra(ji,jj,jk,jp13doc) + (1. + d13c_rivdoc*1e-3)*rivdoc(ji,jj) * rfact2
+                  ENDIF
                   IF ( ln_n15 ) THEN
                      tra(ji,jj,jk,jp15no3) = tra(ji,jj,jk,jp15no3) + (1. + d15n_riv*1e-3)*rivdin(ji,jj) * rfact2
                      tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) + (1. + d15n_riv*1e-3)*rivdoc(ji,jj) * rfact2
@@ -304,6 +317,11 @@ CONTAINS
             !
             tra(ji,jj,ikt,jpgsi) = tra(ji,jj,ikt,jpgsi) - zsiloss
             tra(ji,jj,ikt,jpcal) = tra(ji,jj,ikt,jpcal) - zcaloss
+            IF ( ln_c13 ) THEN
+               zr13_cal = ( (trb(ji,jj,ikt,jp13cal)+rtrn) / (trb(ji,jj,ikt,jpcal)+rtrn) )
+               tra(ji,jj,ikt,jp13cal) = tra(ji,jj,ikt,jp13cal) - zcaloss * zr13_cal
+            ENDIF
+
          END DO
       END DO
       !
@@ -323,7 +341,13 @@ CONTAINS
                tra(ji,jj,ikt,jptal) =  tra(ji,jj,ikt,jptal) + zcaloss * zrivalk * 2.0
                tra(ji,jj,ikt,jpdic) =  tra(ji,jj,ikt,jpdic) + zcaloss * zrivalk
                zsedcal(ji,jj) = (1.0 - zrivalk) * zcaloss * e3t_n(ji,jj,ikt) 
-               zsedsi (ji,jj) = (1.0 - zrivsil) * zsiloss * e3t_n(ji,jj,ikt) 
+               zsedsi (ji,jj) = (1.0 - zrivsil) * zsiloss * e3t_n(ji,jj,ikt)
+               zseddiss(ji,jj,ikt) = zrivalk * zcaloss
+               IF ( ln_c13 ) THEN
+                  zr13_cal = ( (trb(ji,jj,ikt,jp13cal)+rtrn) / (trb(ji,jj,ikt,jpcal)+rtrn) )
+                  tra(ji,jj,ikt,jp13dic) =  tra(ji,jj,ikt,jp13dic) + zcaloss * zrivalk * zr13_cal
+                  zseddiss13(ji,jj,ikt) = zcaloss * zrivalk * zr13_cal
+               ENDIF
             END DO
          END DO
       ENDIF
@@ -338,6 +362,10 @@ CONTAINS
             tra(ji,jj,ikt,jppoc) = tra(ji,jj,ikt,jppoc) - trb(ji,jj,ikt,jppoc) * zws3
             tra(ji,jj,ikt,jpbfe) = tra(ji,jj,ikt,jpbfe) - trb(ji,jj,ikt,jpbfe) * zws4
             tra(ji,jj,ikt,jpsfe) = tra(ji,jj,ikt,jpsfe) - trb(ji,jj,ikt,jpsfe) * zws3
+            IF ( ln_c13 ) THEN
+               tra(ji,jj,ikt,jp13goc) = tra(ji,jj,ikt,jp13goc) - trb(ji,jj,ikt,jp13goc) * zws4 ! remove previous GOC_13
+               tra(ji,jj,ikt,jp13poc) = tra(ji,jj,ikt,jp13poc) - trb(ji,jj,ikt,jp13poc) * zws3 ! remove previous POC_13
+            ENDIF
             IF ( ln_n15 ) THEN
                tra(ji,jj,ikt,jp15goc) = tra(ji,jj,ikt,jp15goc) - trb(ji,jj,ikt,jp15goc) * zws4 ! remove previous GOC_15
                tra(ji,jj,ikt,jp15poc) = tra(ji,jj,ikt,jp15poc) - trb(ji,jj,ikt,jp15poc) * zws3 ! remove previous POC_15
@@ -392,6 +420,7 @@ CONTAINS
                tra(ji,jj,ikt,jpoxy) = tra(ji,jj,ikt,jpoxy) - zolimit(ji,jj,ikt) * o2ut
                tra(ji,jj,ikt,jptal) = tra(ji,jj,ikt,jptal) + rno3 * (zolimit(ji,jj,ikt) + (1.+rdenit) * zpdenit(ji,jj,ikt) )
                tra(ji,jj,ikt,jpdic) = tra(ji,jj,ikt,jpdic) + zpdenit(ji,jj,ikt) + zolimit(ji,jj,ikt) 
+               zsedremin(ji,jj,ikt) = zpdenit(ji,jj,ikt) + zolimit(ji,jj,ikt)
                sdenit(ji,jj) = rdenit * zpdenit(ji,jj,ikt) * e3t_n(ji,jj,ikt)
                zsedc(ji,jj)   = (1. - zrivno3) * zwstpoc * e3t_n(ji,jj,ikt)
                IF( ln_p5z ) THEN
@@ -399,6 +428,15 @@ CONTAINS
                   zwstpon              = trb(ji,jj,ikt,jpgon) * zws4 + trb(ji,jj,ikt,jppon) * zws3
                   tra(ji,jj,ikt,jpdon) = tra(ji,jj,ikt,jpdon) + ( z1pdenit - zolimit(ji,jj,ikt) ) * zwstpon / (zwstpoc + rtrn)
                   tra(ji,jj,ikt,jpdop) = tra(ji,jj,ikt,jpdop) + ( z1pdenit - zolimit(ji,jj,ikt) ) * zwstpop / (zwstpoc + rtrn)
+               ENDIF
+
+               IF ( ln_c13 ) THEN
+                  zwstpoc13 = trb(ji,jj,ikt,jp13goc)*zws4 + trb(ji,jj,ikt,jp13poc)*zws3 !POC+GOC hitting sediment
+                  zr13_rain = ( (zwstpoc13+rtrn) / (zwstpoc+rtrn) )
+                  tra(ji,jj,ikt,jp13doc) = tra(ji,jj,ikt,jp13doc) + zwstpoc13 * zrivno3           &
+                  &                        - zpdenit(ji,jj,ikt) * zr13_rain - zolimit(ji,jj,ikt) * zr13_rain
+                  tra(ji,jj,ikt,jp13dic) = tra(ji,jj,ikt,jp13dic) + zpdenit(ji,jj,ikt) * zr13_rain + zolimit(ji,jj,ikt) * zr13_rain
+                  zsedremin13(ji,jj,ikt) = zpdenit(ji,jj,ikt) * zr13_rain + zolimit(ji,jj,ikt) * zr13_rain
                ENDIF
                IF ( ln_n15 ) THEN
                   ! collect isotopic signatures
@@ -502,6 +540,11 @@ CONTAINS
                   tra(ji,jj,jk,jpfer) = tra(ji,jj,jk,jpfer) + 0.002 * 4E-10 * zsoufer(ji,jj,jk) * rfact2 / rday
                   tra(ji,jj,jk,jppo4) = tra(ji,jj,jk,jppo4) + concdnh4 / ( concdnh4 + trb(ji,jj,jk,jppo4) ) &
                   &                     * 0.001 * trb(ji,jj,jk,jpdoc) * xstep
+                  IF ( ln_c13 ) THEN
+                     tra(ji,jj,jk,jp13doc) = tra(ji,jj,jk,jp13doc) + zfact * (1. + d13c_fix*1e-3) * 1./3.
+                     tra(ji,jj,jk,jp13poc) = tra(ji,jj,jk,jp13poc) + zfact * (1. + d13c_fix*1e-3) * 2./9.
+                     tra(ji,jj,jk,jp13goc) = tra(ji,jj,jk,jp13goc) + zfact * (1. + d13c_fix*1e-3) * 1./9.
+                  ENDIF
                   IF ( ln_n15 ) THEN
                      tra(ji,jj,jk,jp15nh4) = tra(ji,jj,jk,jp15nh4) + zfact * (1. + d15n_fix*1e-3) * 1./3.
                      tra(ji,jj,jk,jp15doc) = tra(ji,jj,jk,jp15doc) + zfact * (1. + d15n_fix*1e-3) * 1./3.
@@ -552,6 +595,9 @@ CONTAINS
          IF( knt == nrdttrc ) THEN
             zfact = 1.e+3 * rfact2r !  conversion from molC/l/kt  to molN/m3/s
             IF( iom_use("Nfix"   ) ) CALL iom_put( "Nfix", nitrpot(:,:,:) * nitrfix * rno3 * zfact * tmask(:,:,:) )  ! nitrogen fixation 
+            if ( ln_senexp ) then
+              IF( iom_use("senexp"   ) ) CALL iom_put( "senexp", senexp(:,:,:) * tmask(:,:,:) )  ! sensitivity experiment
+            endif
             IF( iom_use("INTNFIX") ) THEN   ! nitrogen fixation rate in ocean ( vertically integrated )
                zwork(:,:) = 0.
                DO jk = 1, jpkm1
@@ -562,9 +608,13 @@ CONTAINS
             IF( iom_use("SedCal" ) ) CALL iom_put( "SedCal", zsedcal(:,:) * zfact )
             IF( iom_use("SedSi" ) )  CALL iom_put( "SedSi",  zsedsi (:,:) * zfact )
             IF( iom_use("SedC" ) )   CALL iom_put( "SedC",   zsedc  (:,:) * zfact )
+            IF( iom_use("SedDiss" ) ) CALL iom_put( "SedDiss", zseddiss(:,:,:) * zfact * tmask(:,:,:) )
             IF( iom_use("Sdenit" ) ) CALL iom_put( "Sdenit", sdenit (:,:) * zfact * rno3 )
+            IF( iom_use("SedReminC" ) ) CALL iom_put( "SedReminC", zsedremin(:,:,:) * zfact * tmask(:,:,:) )
             IF( iom_use("SDEN3D" ) ) CALL iom_put( "SDEN3D", zpdenit(:,:,:) * rdenit * zfact * rno3 * tmask(:,:,:) )
             IF( iom_use("SREM3D" ) ) CALL iom_put( "SREM3D", zolimit(:,:,:) * zfact * tmask(:,:,:) )
+            IF( iom_use("River_DIC" ) ) CALL iom_put( "River_DIC", rivdic(:,:) * zfact )
+            IF( iom_use("River_DOC" ) ) CALL iom_put( "River_DOC", rivdoc(:,:) * zfact )
             IF( iom_use("River_NO3" ) ) CALL iom_put( "River_NO3", rivdin(:,:) * zfact )
             IF( iom_use("Ndep_NO3" ) ) CALL iom_put( "Ndep_NO3", nitdep(:,:) * zfact )
          ENDIF

@@ -42,6 +42,7 @@ MODULE p4zmeso
    REAL(wp), PUBLIC ::  epsher2      !: growth efficiency
    REAL(wp), PUBLIC ::  epsher2min   !: minimum growth efficiency at high food for grazing 2
    REAL(wp), PUBLIC ::  grazflux     !: mesozoo flux feeding rate
+   REAL(wp), PUBLIC ::  e13c_cal2    !: C13 mesozoo calcification fractionation
    REAL(wp), PUBLIC ::  e15n_ex2     !: N15 mesozoo excretion fractionation
    REAL(wp), PUBLIC ::  e15n_in2     !: N15 mesozoo ingestion fractionation
    REAL(wp), PUBLIC ::  e18oxy_mes   !: O18 mesozoo respiration fractionation
@@ -73,13 +74,16 @@ CONTAINS
       REAL(wp) :: zrespz, ztortz, zgrazd, zgrazz, zgrazpof
       REAL(wp) :: zgrazn, zgrazpoc, zgraznf, zgrazf
       REAL(wp) :: zgrazfffp, zgrazfffg, zgrazffep, zgrazffeg
+      REAL(wp) :: zgrazn13, zgrazd13, zgrazz13, zgrazpoc13, zgrazffp13, zgrazffg13
+      REAL(wp) :: zmortz13, zfrac13, zgraztotc13
+      REAL(wp) :: zgrarem2_13, zgrapoc2_13, zgrasig2_13, zmortzgoc_13, zr13_dic, zr13_cal
       REAL(wp) :: zgrazn15, zgrazd15, zgrazz15, zgrazpoc15, zgrazffp15, zgrazffg15
       REAL(wp) :: zmortz15, zfrac15, zgraztotc15
       REAL(wp) :: zgrarem2_15, zgrapoc2_15, zgrasig2_15, zgrasigex2_15, zmortzgoc_15
       REAL(wp) :: zr18_oxy
       CHARACTER (len=25) :: charout
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zgrazing2, zfezoo2
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: excretion2, excretion2_15
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: excretion2, excretion2_13, excretion2_15
       REAL(wp), ALLOCATABLE, DIMENSION(:,:,:) ::   zw3d, zz2ligprod
       !!---------------------------------------------------------------------
       !
@@ -163,7 +167,15 @@ CONTAINS
                ! Total feeding of Mesozooplankton [POC,GOC,PHY,PHY2,ZOO] --> [ZOO2]
                zgraztotc = zgrazd + zgrazz + zgrazn + zgrazpoc + zgrazffep + zgrazffeg ! total feeding
 
-               ! get the d15N signature of the food sources
+               ! get the d13C and d15N signature of the food sources
+               IF ( ln_c13 ) THEN
+                  zgrazn13 = zgrazn * ( (trb(ji,jj,jk,jp13phy)+rtrn) / (trb(ji,jj,jk,jpphy)+rtrn) )
+                  zgrazd13 = zgrazd * ( (trb(ji,jj,jk,jp13dia)+rtrn) / (trb(ji,jj,jk,jpdia)+rtrn) )
+                  zgrazz13 = zgrazz * ( (trb(ji,jj,jk,jp13zoo)+rtrn) / (trb(ji,jj,jk,jpzoo)+rtrn) )
+                  zgrazpoc13 = zgrazpoc * ( (trb(ji,jj,jk,jp13poc)+rtrn) / (trb(ji,jj,jk,jppoc)+rtrn) )
+                  zgrazffg13 = zgrazffeg * ( (trb(ji,jj,jk,jp13goc)+rtrn) / (trb(ji,jj,jk,jpgoc)+rtrn) )
+                  zgrazffp13 = zgrazffep * ( (trb(ji,jj,jk,jp13poc)+rtrn) / (trb(ji,jj,jk,jppoc)+rtrn) )
+               ENDIF
                IF ( ln_n15 ) THEN
                   zgrazn15 = zgrazn * ( (trb(ji,jj,jk,jp15phy)+rtrn) / (trb(ji,jj,jk,jpphy)+rtrn) )
                   zgrazd15 = zgrazd * ( (trb(ji,jj,jk,jp15dia)+rtrn) / (trb(ji,jj,jk,jpdia)+rtrn) )
@@ -204,6 +216,12 @@ CONTAINS
                zgraztotf = zgrazf + zgraznf + zgrazz * ferat3 + zgrazpof + zgrazfffp + zgrazfffg
 
                ! calculate the fractionation of particulates by filter feeders
+               IF ( ln_c13 ) THEN
+                  zfrac13     = zfrac * ( (trb(ji,jj,jk,jp13goc)+rtrn) / (trb(ji,jj,jk,jpgoc)+rtrn) )
+                  zgrazffg13  = zgrazffg13 * zproport
+                  zgrazffp13  = zgrazffp13 * zproport
+                  zgraztotc13 = zgrazn13 + zgrazd13 + zgrazz13 + zgrazpoc13 + zgrazffp13 + zgrazffg13
+               ENDIF
                IF ( ln_n15 ) THEN
                   zfrac15     = zfrac * ( (trb(ji,jj,jk,jp15goc)+rtrn) / (trb(ji,jj,jk,jpgoc)+rtrn) )
                   zgrazffg15  = zgrazffg15 * zproport
@@ -260,6 +278,15 @@ CONTAINS
                  !              [ZOO2] --> [GOC]
 
                ! calculate the remin (-->NH4/DOC), remin[excretion] (-->NH4), unassim (-->GOC), mort (-->GOC)
+               IF ( ln_c13 ) THEN
+                  zgrarem2_13   = zgraztotc13 * ( 1. - zepsherv - unass2 ) &  ! [food] --> [NH4/DOC]
+                  &               + ztortz * ( 1. - epsher2 - unass2 ) / ( 1. - epsher2 )  & ![mes] --> [NH4/DOC]
+                  &               * ( (trb(ji,jj,jk,jp13mes)+rtrn) / (trb(ji,jj,jk,jpmes)+rtrn) )
+                  zgrapoc2_13   = zgraztotc13 * unass2 ! [food] --> [GOC]
+                  zgrasig2_13   = zgrarem2_13 * sigma2 ! [food/mes] --> [NH4]
+                  zmortzgoc_13  = ( unass2 / ( 1. - epsher2 ) * ztortz + zrespz )  & ! [mes] --> [GOC]
+                  &               * ( (trb(ji,jj,jk,jp13mes)+rtrn) / (trb(ji,jj,jk,jpmes)+rtrn) )
+               ENDIF
                IF ( ln_n15 ) THEN
                   zgrarem2_15   = zgraztotc15 * ( 1. - zepsherv - unass2 ) &  ! [food] --> [NH4/DOC]
                   &               + ztortz * ( 1. - epsher2 - unass2 ) / ( 1. - epsher2 )  & ![mes] --> [NH4/DOC]
@@ -289,6 +316,11 @@ CONTAINS
                tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) + zgrarsig
                tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) + rno3 * zgrarsig              
 
+               IF ( ln_c13 ) THEN
+                  tra(ji,jj,jk,jp13doc) = tra(ji,jj,jk,jp13doc) + zgrarem2_13 - zgrasig2_13
+                  tra(ji,jj,jk,jp13dic) = tra(ji,jj,jk,jp13dic) + zgrasig2_13
+                  excretion2_13(ji,jj,jk) = zgrasig2_13
+               ENDIF
                IF ( ln_n15 ) THEN
                   excretion2_15(ji,jj,jk) = zgrasigex2_15 * ( 1. - e15n_ex2/1000.0)  + ( zgrasig2_15 - zgrasigex2_15 )
                   tra(ji,jj,jk,jp15nh4) = tra(ji,jj,jk,jp15nh4) + excretion2_15(ji,jj,jk)
@@ -340,6 +372,23 @@ CONTAINS
                tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) - 2. * ( zgrazcal + zprcaca )
                tra(ji,jj,jk,jpcal) = tra(ji,jj,jk,jpcal) - zgrazcal + zprcaca
 
+               IF ( ln_c13 ) THEN
+                  zmortz13 = zmortz * ( (trb(ji,jj,jk,jp13mes)+rtrn) / (trb(ji,jj,jk,jpmes)+rtrn) )
+                  tra(ji,jj,jk,jp13mes) = tra(ji,jj,jk,jp13mes) - zmortz13 + zepsherv * zgraztotc13
+                  tra(ji,jj,jk,jp13dia) = tra(ji,jj,jk,jp13dia) - zgrazd13
+                  tra(ji,jj,jk,jp13zoo) = tra(ji,jj,jk,jp13zoo) - zgrazz13
+                  tra(ji,jj,jk,jp13phy) = tra(ji,jj,jk,jp13phy) - zgrazn13
+                  tra(ji,jj,jk,jp13poc) = tra(ji,jj,jk,jp13poc) - zgrazpoc13 - zgrazffp13 + zfrac13
+                  tra(ji,jj,jk,jp13goc) = tra(ji,jj,jk,jp13goc) + zmortzgoc_13 - zgrazffg13 - zfrac13 + zgrapoc2_13
+
+                  zr13_dic = ( (trb(ji,jj,jk,jp13dic)+rtrn) / (trb(ji,jj,jk,jpdic)+rtrn) )
+                  zr13_cal = ( (trb(ji,jj,jk,jp13cal)+rtrn) / (trb(ji,jj,jk,jpcal)+rtrn) )
+                  tra(ji,jj,jk,jp13dic) = tra(ji,jj,jk,jp13dic) + zgrazcal * zr13_cal                  &
+                  &                       - zprcaca * zr13_dic * (1. - e13c_cal2/1000.)
+                  tra(ji,jj,jk,jp13cal) = tra(ji,jj,jk,jp13cal) - zgrazcal * zr13_cal                  &
+                  &                       + zprcaca * zr13_dic * (1. - e13c_cal2/1000.)
+                  prodcal13(ji,jj,jk) = prodcal13(ji,jj,jk) + zprcaca * zr13_dic * (1. - e13c_cal2/1000.)
+               ENDIF
                IF ( ln_n15 ) THEN
                   zmortz15 = zmortz * ( (trb(ji,jj,jk,jp15mes)+rtrn) / (trb(ji,jj,jk,jpmes)+rtrn) )
                   tra(ji,jj,jk,jp15mes) = tra(ji,jj,jk,jp15mes) - zmortz15 + zepsherv * zgraztotc15    &
@@ -411,7 +460,7 @@ CONTAINS
       NAMELIST/namp4zmes/ part2, grazrat2, resrat2, mzrat2, xpref2n, xpref2d, xpref2z,   &
          &                xpref2c, xthresh2dia, xthresh2phy, xthresh2zoo, xthresh2poc, &
          &                xthresh2, xkgraz2, epsher2, epsher2min, sigma2, unass2, grazflux, &
-         &                e15n_ex2, e15n_in2, e18oxy_mes
+         &                e13c_cal2, e15n_ex2, e15n_in2, e18oxy_mes
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -449,6 +498,7 @@ CONTAINS
          WRITE(numout,*) '      Minimum Efficiency of Mesozoo growth           epsher2min  =', epsher2min
          WRITE(numout,*) '      Fraction of mesozoo excretion as DOM           sigma2       =', sigma2
          WRITE(numout,*) '      half sturation constant for grazing 2          xkgraz2      =', xkgraz2
+         WRITE(numout,*) '      C13 mesozoo calcification fractionation        e13c_cal2    =', e13c_cal2
          WRITE(numout,*) '      N15 mesozoo excretion fractionation            e15n_ex2     =', e15n_ex2
          WRITE(numout,*) '      N15 mesozoo ingestion fractionation            e15n_in2     =', e15n_in2
          WRITE(numout,*) '      O15 mesozoo respiration fractionation          e18oxy_mes   =', e18oxy_mes

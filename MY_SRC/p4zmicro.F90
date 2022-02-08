@@ -40,6 +40,7 @@ MODULE p4zmicro
    REAL(wp), PUBLIC ::   sigma1      !: Fraction of microzoo excretion as DOM 
    REAL(wp), PUBLIC ::   epsher      !: growth efficiency for grazing 1 
    REAL(wp), PUBLIC ::   epshermin   !: minimum growth efficiency for grazing 1
+   REAL(wp), PUBLIC ::   e13c_calz   !: C13 microzoo calification fractionation
    REAL(wp), PUBLIC ::   e15n_ex     !: N15 microzoo excretion fractionation
    REAL(wp), PUBLIC ::   e15n_in     !: N15 microzoo ingestion fractionation
    REAL(wp), PUBLIC ::   e18oxy_zoo  !: O18 microzoo respiration fractionation
@@ -71,11 +72,13 @@ CONTAINS
       REAL(wp) :: zrespz, ztortz, zgrasrat, zgrasratn
       REAL(wp) :: zgrazp, zgrazm, zgrazsd
       REAL(wp) :: zgrazmf, zgrazsf, zgrazpf
+      REAL(wp) :: zgrazp13, zgrazm13, zgrazsd13, zgraztotc13
+      REAL(wp) :: zgrarem_13, zgrapoc_13, zgrasig_13, zmortz_13, zr13_dic
       REAL(wp) :: zgrazp15, zgrazm15, zgrazsd15, zgraztotc15
       REAL(wp) :: zgrarem_15, zgrapoc_15, zgrasig_15, zgrasigex_15, zmortz_15
       REAL(wp) :: zr18_oxy
       REAL(wp), DIMENSION(jpi,jpj,jpk) :: zgrazing1, zfezoo
-      REAL(wp), DIMENSION(jpi,jpj,jpk) :: excretion1, excretion1_15
+      REAL(wp), DIMENSION(jpi,jpj,jpk) :: excretion1, excretion1_13, excretion1_15
       REAL(wp), DIMENSION(:,:,:), ALLOCATABLE :: zw3d, zzligprod
       CHARACTER (len=25) :: charout
       !!---------------------------------------------------------------------
@@ -119,6 +122,12 @@ CONTAINS
                zgrazm    = zgraze  * xprefc * zcompapoc * zdenom2 
                zgrazsd   = zgraze  * xprefd * zcompadi  * zdenom2 
 
+               IF( ln_c13 ) THEN
+                  zgrazp13    = zgrazp  * ( (trb(ji,jj,jk,jp13phy)+rtrn) / (trb(ji,jj,jk,jpphy)+rtrn) )
+                  zgrazm13    = zgrazm  * ( (trb(ji,jj,jk,jp13poc)+rtrn) / (trb(ji,jj,jk,jppoc)+rtrn) )
+                  zgrazsd13   = zgrazsd * ( (trb(ji,jj,jk,jp13dia)+rtrn) / (trb(ji,jj,jk,jpdia)+rtrn) )
+                  zgraztotc13 = zgrazp13 + zgrazm13 + zgrazsd13
+               ENDIF
                IF( ln_n15 ) THEN
                   zgrazp15    = zgrazp  * ( (trb(ji,jj,jk,jp15phy)+rtrn) / (trb(ji,jj,jk,jpphy)+rtrn) )
                   zgrazm15    = zgrazm  * ( (trb(ji,jj,jk,jp15poc)+rtrn) / (trb(ji,jj,jk,jppoc)+rtrn) )
@@ -150,6 +159,12 @@ CONTAINS
                zgrarem   = zgraztotc * ( 1. - zepsherv - unass )
                zgrapoc   = zgraztotc * unass
 
+               IF ( ln_c13 ) THEN
+                  zgrarem_13 = zgraztotc13 * ( 1. - zepsherv - unass )
+                  zgrapoc_13 = zgraztotc13 * unass
+                  zgrasig_13 = zgrarem_13 * sigma1
+                  zmortz_13  = (ztortz + zrespz) * ( (trb(ji,jj,jk,jp13zoo)+rtrn) / (trb(ji,jj,jk,jpzoo)+rtrn) )
+               ENDIF
                IF ( ln_n15 ) THEN
                   zgrarem_15 = zgraztotc15 * ( 1. - zepsherv - unass )
                   zgrapoc_15 = zgraztotc15 * unass
@@ -183,6 +198,12 @@ CONTAINS
                tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) + zgrarsig
                tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) + rno3 * zgrarsig
 
+               IF( ln_c13 ) THEN
+                  tra(ji,jj,jk,jp13doc) = tra(ji,jj,jk,jp13doc) + zgrarem_13 - zgrasig_13
+                  tra(ji,jj,jk,jp13poc) = tra(ji,jj,jk,jp13poc) + zgrapoc_13
+                  tra(ji,jj,jk,jp13dic) = tra(ji,jj,jk,jp13dic) + zgrasig_13
+                  excretion1_13(ji,jj,jk) = zgrasig_13
+               ENDIF
                IF( ln_n15 ) THEN
                   excretion1_15(ji,jj,jk) = zgrasigex_15 * ( 1. - e15n_ex/1000.0 ) + ( zgrasig_15 - zgrasigex_15 )
                   tra(ji,jj,jk,jp15nh4) = tra(ji,jj,jk,jp15nh4) + excretion1_15(ji,jj,jk)
@@ -218,6 +239,16 @@ CONTAINS
                tra(ji,jj,jk,jpdic) = tra(ji,jj,jk,jpdic) - zprcaca
                tra(ji,jj,jk,jptal) = tra(ji,jj,jk,jptal) - 2. * zprcaca
                tra(ji,jj,jk,jpcal) = tra(ji,jj,jk,jpcal) + zprcaca
+               IF ( ln_c13 ) THEN
+                  zr13_dic = ( (trb(ji,jj,jk,jp13dic)+rtrn) / (trb(ji,jj,jk,jpdic)+rtrn) )
+                  tra(ji,jj,jk,jp13zoo) = tra(ji,jj,jk,jp13zoo) - zmortz_13 + zepsherv * zgraztotc13
+                  tra(ji,jj,jk,jp13phy) = tra(ji,jj,jk,jp13phy) - zgrazp13
+                  tra(ji,jj,jk,jp13dia) = tra(ji,jj,jk,jp13dia) - zgrazsd13
+                  tra(ji,jj,jk,jp13poc) = tra(ji,jj,jk,jp13poc) + zmortz_13 - zgrazm13
+                  tra(ji,jj,jk,jp13dic) = tra(ji,jj,jk,jp13dic) - zprcaca * zr13_dic * (1. - e13c_calz/1000.)
+                  tra(ji,jj,jk,jp13cal) = tra(ji,jj,jk,jp13cal) + zprcaca * zr13_dic * (1. - e13c_calz/1000.)
+                  prodcal13(ji,jj,jk) = prodcal13(ji,jj,jk) + zprcaca * zr13_dic * (1. - e13c_calz/1000.)
+               ENDIF
                IF ( ln_n15 ) THEN
                   tra(ji,jj,jk,jp15zoo) = tra(ji,jj,jk,jp15zoo) - zmortz_15 + zepsherv * zgraztotc15  &
                   &                       + zgrasigex_15 * (e15n_ex/1000.0) + zgrapoc_15 * (e15n_in/1000.0)
@@ -282,7 +313,7 @@ CONTAINS
       NAMELIST/namp4zzoo/ part, grazrat, resrat, mzrat, xprefn, xprefc, &
          &                xprefd,  xthreshdia,  xthreshphy,  xthreshpoc, &
          &                xthresh, xkgraz, epsher, epshermin, sigma1, unass, &
-         &                e15n_ex, e15n_in, e18oxy_zoo
+         &                e13c_calz, e15n_ex, e15n_in, e18oxy_zoo
       !!----------------------------------------------------------------------
       !
       IF(lwp) THEN
@@ -317,6 +348,7 @@ CONTAINS
          WRITE(numout,*) '      Minimum efficicency of microzoo growth          epshermin   =', epshermin
          WRITE(numout,*) '      Fraction of microzoo excretion as DOM           sigma1      =', sigma1
          WRITE(numout,*) '      half sturation constant for grazing 1           xkgraz      =', xkgraz
+         WRITE(numout,*) '      C13 microzoo calcification fractionation        e13c_calz   =', e13c_calz
          WRITE(numout,*) '      N15 microzoo excretion fractionation            e15n_ex     =', e15n_ex
          WRITE(numout,*) '      N15 microzoo ingestion fractionation            e15n_in     =', e15n_in
          WRITE(numout,*) '      O18 microzoo respiration fractionation          e18oxy_zoo  =', e18oxy_zoo
