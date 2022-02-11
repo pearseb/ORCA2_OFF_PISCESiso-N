@@ -1,0 +1,154 @@
+!!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!! NEMO/TOP1 :  Configuration namelist : used to overwrite defaults values defined in SHARED/namelist_top_ref
+!>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>>
+!-----------------------------------------------------------------------
+&namtrc_run      !   run information
+!-----------------------------------------------------------------------
+   ln_rsttr      = .true.   !  start from a restart file (T) or not (F)
+   ln_top_euler  = .true.
+   cn_trcrst_out = "restart.trc"   !  suffix of pass. sn_tracer restart name (output)
+/
+!-----------------------------------------------------------------------
+&namtrc          !   tracers definition
+!-----------------------------------------------------------------------
+   jp_bgc        =  49
+!
+   ln_pisces     =  .true.
+   ln_my_trc     =  .false.
+   ln_age        =  .true.
+   ln_cfc11      =  .false.
+   ln_cfc12      =  .false.
+   ln_c14        =  .false.
+!
+   ln_trcdta     =  .false.  !  Initialisation from data input file (T) or not (F)
+!                !           !                                         !            !                               !
+!                !    name   !           title of the field            !   units    ! initial data from file or not ! 
+   sn_tracer(1)   = 'DIC     ' , 'Dissolved inorganic Concentration      ',  'mol-C/L' ,  .true.
+   sn_tracer(2)   = 'Alkalini' , 'Total Alkalinity Concentration         ',  'eq/L '   ,  .true.
+   sn_tracer(3)   = 'O2      ' , 'Dissolved Oxygen Concentration         ',  'mol-O/L' ,  .true.
+   sn_tracer(4)   = 'CaCO3   ' , 'Calcite Concentration                  ',  'mol-C/L' ,  .false.
+   sn_tracer(5)   = 'PO4     ' , 'Phosphate Concentration                ',  'mol-C/L' ,  .true.
+   sn_tracer(6)   = 'POC     ' , 'Small organic carbon Concentration     ',  'mol-C/L' ,  .false.
+   sn_tracer(7)   = 'Si      ' , 'Silicate Concentration                 ',  'mol-C/L' ,  .true.
+   sn_tracer(8)   = 'PHY     ' , 'Nanophytoplankton Concentration        ',  'mol-C/L' ,  .false.
+   sn_tracer(9)   = 'ZOO     ' , 'Microzooplankton Concentration         ',  'mol-C/L' ,  .false.
+   sn_tracer(10)  = 'DOC     ' , 'Dissolved organic Concentration        ',  'mol-C/L' ,  .true.
+   sn_tracer(11)  = 'PHY2    ' , 'Diatoms Concentration                  ',  'mol-C/L' ,  .false.
+   sn_tracer(12)  = 'ZOO2    ' , 'Mesozooplankton Concentration          ',  'mol-C/L' ,  .false.
+   sn_tracer(13)  = 'DSi     ' , 'Diatoms Silicate Concentration         ',  'mol-C/L' ,  .false.
+   sn_tracer(14)  = 'Fer     ' , 'Dissolved Iron Concentration           ',  'mol-C/L' ,  .true.
+   sn_tracer(15)  = 'BFe     ' , 'Big iron particles Concentration       ',  'mol-C/L' ,  .false.
+   sn_tracer(16)  = 'GOC     ' , 'Big organic carbon Concentration       ',  'mol-C/L' ,  .false.
+   sn_tracer(17)  = 'SFe     ' , 'Small iron particles Concentration     ',  'mol-C/L' ,  .false.
+   sn_tracer(18)  = 'DFe     ' , 'Diatoms iron  Concentration            ',  'mol-C/L' ,  .false.
+   sn_tracer(19)  = 'GSi     ' , 'Sinking biogenic Silicate Concentration',  'mol-C/L' ,  .false.
+   sn_tracer(20)  = 'NFe     ' , 'Nano iron Concentration                ',  'mol-C/L' ,  .false.
+   sn_tracer(21)  = 'NCHL    ' , 'Nano chlorophyl Concentration          ',  'mol-C/L' ,  .false.
+   sn_tracer(22)  = 'DCHL    ' , 'Diatoms chlorophyl Concentration       ',  'mol-C/L' ,  .false.
+   sn_tracer(23)  = 'LGW     ' , 'Ligand Concentration                   ',  'mol-C/L' ,  .false.  
+   sn_tracer(24)  = 'NO3     ' , 'Nitrates Concentration                 ',  'mol-C/L' ,  .true.
+   sn_tracer(25)  = 'NO2     ' , 'Nitrites Concentration                 ',  'mol-C/L' ,  .false.
+   sn_tracer(26)  = 'NH4     ' , 'Ammonium Concentration                 ',  'mol-C/L' ,  .false.
+   sn_tracer(27)  = 'PHY_15  ' , '15N Nanophytoplankton Concentration    ',  'mol-C/L' ,  .false.
+   sn_tracer(28)  = 'ZOO_15  ' , '15N Microzooplankton Concentration     ',  'mol-C/L' ,  .false.
+   sn_tracer(29)  = 'DOC_15  ' , '15N Dissolved organic Concentration    ',  'mol-C/L' ,  .true.
+   sn_tracer(30)  = 'PHY2_15 ' , '15N Diatoms Concentration              ',  'mol-C/L' ,  .false.
+   sn_tracer(31)  = 'ZOO2_15 ' , '15N Mesozooplankton Concentration      ',  'mol-C/L' ,  .false.
+   sn_tracer(32)  = 'POC_15  ' , '15N Small organic carbon Concentration ',  'mol-C/L' ,  .false.
+   sn_tracer(33)  = 'GOC_15  ' , '15N Big organic carbon Concentration   ',  'mol-C/L' ,  .false.
+   sn_tracer(34)  = 'NO3_15  ' , '15N Nitrate Concentration              ',  'mol-C/L' ,  .true.
+   sn_tracer(35)  = 'NO2_15  ' , '15N Nitrite Concentration              ',  'mol-C/L' ,  .false.
+   sn_tracer(36)  = 'NH4_15  ' , '15N Ammonium Concentration             ',  'mol-C/L' ,  .false.
+   sn_tracer(37)  = 'NO3_18  ' , '18O Nitrate Concentration              ',  'mol-C/L' ,  .true.
+   sn_tracer(38)  = 'NO2_18  ' , '18O Nitrite Concentration              ',  'mol-C/L' ,  .false.
+   sn_tracer(39)  = 'O2_18   ' , '18O Dissolved Oxygen Concentration     ',  'mol-C/L' ,  .true.
+   sn_tracer(40)  = 'preO2   ' , 'Preformed oxygen concentration         ',  'mol-O/L' ,  .true.
+   sn_tracer(41)  = 'PHY_13  ' , '13N Nanophytoplankton Concentration    ',  'mol-C/L' ,  .false.
+   sn_tracer(42)  = 'ZOO_13  ' , '13N Microzooplankton Concentration     ',  'mol-C/L' ,  .false.
+   sn_tracer(43)  = 'DOC_13  ' , '13N Dissolved organic Concentration    ',  'mol-C/L' ,  .true.
+   sn_tracer(44)  = 'PHY2_13 ' , '13N Diatoms Concentration              ',  'mol-C/L' ,  .false.
+   sn_tracer(45)  = 'ZOO2_13 ' , '13N Mesozooplankton Concentration      ',  'mol-C/L' ,  .false.
+   sn_tracer(46)  = 'POC_13  ' , '13N Small organic carbon Concentration ',  'mol-C/L' ,  .false.
+   sn_tracer(47)  = 'GOC_13  ' , '13N Big organic carbon Concentration   ',  'mol-C/L' ,  .false.
+   sn_tracer(48)  = 'DIC_13  ' , '13N dissolved inroganic Concentration  ',  'mol-C/L' ,  .true.
+   sn_tracer(49)  = 'CaCO3_13 ', '13N Calcite Concentration              ',  'mol-C/L' ,  .false.
+/
+!-----------------------------------------------------------------------
+&namage          !   AGE 
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namtrc_dta      !    Initialisation from data input file
+!-----------------------------------------------------------------------
+!          !  file name  ! frequency (hours) ! variable  ! time interp. !  clim  ! 'yearly'/ ! weights  ! rotation ! land/sea mask !
+!          !             !  (if <0  months)  !   name    !   (logical)  !  (T/F) ! 'monthly' ! filename ! pairing  ! filename      !
+   sn_trcdta(1)  = 'data_DIC_nomask'        ,        -12        ,  'DIC'     ,    .false.   , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(2)  = 'data_Alkalini_nomask'   ,        -12        ,  'Alkalini',    .false.   , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(3)  = 'data_O2_nomask'         ,        -1         ,  'O2'      ,    .true.    , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(5)  = 'data_PO4_nomask'        ,        -1         ,  'PO4'     ,    .true.    , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(7)  = 'data_Si_nomask'         ,        -1         ,  'Si'      ,    .true.    , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(10) = 'data_DOC_nomask'        ,        -12        ,  'DOC'     ,    .false.   , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(14) = 'data_Fer_nomask'        ,        -12        ,  'Fer'     ,    .false.   , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(24) = 'data_NO3_nomask'        ,        -1         ,  'NO3'     ,    .true.    , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(29) = 'data_DOC_nomask'        ,        -12        ,  'DOC'  ,    .false.   , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(34) = 'data_NO3_nomask'        ,        -1         ,  'NO3'  ,    .true.    , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(37) = 'data_NO3_nomask'        ,        -1         ,  'NO3'  ,    .true.    , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(39) = 'data_O2_nomask'         ,        -1         ,  'O2'   ,    .true.    , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(40) = 'data_O2_nomask'         ,        -1         ,  'O2'   ,    .true.    , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(43) = 'data_DOC_nomask'        ,        -12        ,  'DOC'  ,    .false.   , .true. , 'yearly'  , ''       , ''   , ''
+   sn_trcdta(48) = 'data_DIC_nomask'        ,        -12        ,  'DIC'     ,    .false.   , .true. , 'yearly'  , ''       , ''   , ''
+   rn_trfac(1)   =   1.0e-06  !  multiplicative factor
+   rn_trfac(2)   =   1.0e-06  !  -      -      -     -
+   rn_trfac(3)   =  44.6e-06  !  -      -      -     -
+   rn_trfac(5)   = 122.0e-06  !  -      -      -     -
+   rn_trfac(7)   =   1.0e-06  !  -      -      -     -
+   rn_trfac(10)  =   1.0      !  -      -      -     -
+   rn_trfac(14)  =   1.0      !  -      -      -     -
+   rn_trfac(24)  =   7.6e-06  !  -      -      -     -
+   rn_trfac(29)  =   1.0      !  -      -      -     -
+   rn_trfac(34)  =  7.638e-06 !  -      -      -     -
+   rn_trfac(37)  =  7.619e-06 !  -      -      -     -
+   rn_trfac(39)  =  44.6e-06  !  -      -      -     -
+   rn_trfac(40)  =  44.6e-06  !  -      -      -     -
+   rn_trfac(43)  =   1.0      !  -      -      -     -
+   rn_trfac(48)  =   1.0e-06  !  multiplicative factor
+/
+!-----------------------------------------------------------------------
+&namtrc_adv      !   advection scheme for passive tracer                (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_trcadv_mus =  .true.   !  MUSCL scheme
+      ln_mus_ups =  .false.         !  use upstream scheme near river mouths
+/
+!-----------------------------------------------------------------------
+&namtrc_ldf      !   lateral diffusion scheme for passive tracer        (default: NO selection)
+!-----------------------------------------------------------------------
+   ln_trcldf_tra   =  .true.     !  use active tracer setting
+/
+!-----------------------------------------------------------------------
+&namtrc_rad      !  treatment of negative concentrations 
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namtrc_snk      !  sedimentation of particles
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namtrc_dmp      !   passive tracer newtonian damping   
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namtrc_ice      !    Representation of sea ice growth & melt effects
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namtrc_trd      !   diagnostics on tracer trends                       ('key_trdtrc')
+!----------------------------------------------------------------------
+/
+!----------------------------------------------------------------------
+&namtrc_bc       !   data for boundary conditions
+!-----------------------------------------------------------------------
+/
+!----------------------------------------------------------------------
+&namtrc_bdy      !   Setup of tracer boundary conditions
+!-----------------------------------------------------------------------
+/

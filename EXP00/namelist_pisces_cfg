@@ -1,0 +1,221 @@
+!-----------------------------------------------------------------------
+&nampismod     !  Model used 
+!-----------------------------------------------------------------------
+   ln_c13 = .true.           !  Enable carbon isotope module (only used with ln_p4z & ln_p5z)
+   ln_n15 = .true.           !  Enable nitrogen isotope module (only used with ln_p4z & ln_p5z)
+   ln_o18 = .true.           !  Enable oxygen isotope module (only used with ln_p4z & ln_p5z)
+/
+!-----------------------------------------------------------------------
+&nampisext     !   air-sea exchange
+!-----------------------------------------------------------------------
+   atcco2    =  284.325 
+   d13c_co2   =  -6.6    ! d13C of atm. CO2 
+   d18o_oxy  = 23.88    ! Constant atmospheric d18O of dioxygen
+   e18oxy_eq =  0.7     ! 18O fractionation - equilibrium gas exchange
+   e18oxy_k  = -2.8     ! 18O fractionation - kinetic gas exchange
+/
+!-----------------------------------------------------------------------
+&nampisatm     !  Atmospheric prrssure 
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&nampisbio     !   biological parameters
+!-----------------------------------------------------------------------
+   nrdttrc    =  4        ! time step frequency for biology
+/
+!-----------------------------------------------------------------------
+&namp4zlim     !   parameters for nutrient limitations for PISCES std  - ln_p4z
+!-----------------------------------------------------------------------
+   oxymin     =  10.       ! Strength of slope in aerobic-anaerobic transition
+   oxymax     =  51.E-6    ! Maximum concentration of oxygen for anaerobic processes
+/
+!-----------------------------------------------------------------------
+&namp5zlim     !   parameters for nutrient limitations PISCES QUOTA    - ln_p5z
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namp5zquota   !   parameters for nutrient limitations PISCES quota    - ln_p5z
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&nampisopt     !   parameters for optics
+!-----------------------------------------------------------------------
+/ 
+!-----------------------------------------------------------------------
+&namp4zprod    !   parameters for phytoplankton growth for PISCES std  - ln_p4z
+!-----------------------------------------------------------------------
+   e13c_min   =  15.0      ! C13 assimilation fractionation min
+   e13c_max   =  35.0      ! C13 assimilation fractionation max
+   c13_frac   =  1        ! 0 = Popp et al. (1989), 1 = Laws et al. (1995)
+   e15n_upn   =  0.5      ! N15 fractionation during uptake across cell membrane (nanos)
+   e15n_upd   =  2.0      ! N15 fractionation during uptake across cell membrane (diatoms)
+   e15n_efn   =  0.3      ! N15 fractionation during efflux across cell membrane (nanos)
+   e15n_efd   =  1.2      ! N15 fractionation during efflux across cell membrane (diatoms)
+   e15n_nar   = 26.6      ! N15 fractionation by nitrate reductase enzyme
+   e15n_ama   = 20.0      ! N15 fractionation during ammonium assimilation
+   e18o_upn   =  0.5      ! O18 fractionation during uptake across cell membrane (nanos)
+   e18o_upd   =  2.0      ! O18 fractionation during uptake across cell membrane (diatoms)
+   e18o_efn   =  0.3      ! O18 fractionation during efflux across cell membrane (nanos)
+   e18o_efd   =  1.2      ! O18 fractionation during efflux across cell membrane (diatoms)
+   e18o_nar   = 26.6      ! O18 fractionation by nitrate reductase enzyme
+   e18oxy_pro =  4.0      ! O18 fractionation (O2) by photosynthetic oxygen production
+/
+!-----------------------------------------------------------------------
+&namp5zprod    !   parameters for phytoplankton growth for PISCES quota- ln_p5z
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namp4zmort    !   parameters for phytoplankton sinks for PISCES std   - ln_p4z
+!-----------------------------------------------------------------------
+   e13c_cal  = 2.0    ! C13 phyto calcification fractionation
+/
+!-----------------------------------------------------------------------
+&namp5zmort    !   parameters for phytoplankton sinks for PISCES quota - ln_p5z
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namp4zmes     !   parameters for mesozooplankton for PISCES std       - ln_p4z
+!-----------------------------------------------------------------------
+   e13c_cal2  =  2.0      ! C13 mesozoo calcification fractionation
+   e15n_ex2   =  6.0      ! N15 mesozoo excretion fractionation
+   e15n_in2   =  -1.0     ! N15 mesozoo ingestion fractionation
+   e18oxy_mes = 10.0      ! O18 mesozoo respiration fractionation
+/
+!-----------------------------------------------------------------------
+&namp5zmes     !   parameters for mesozooplankton
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namp4zzoo     !   parameters for microzooplankton for PISCES std      - ln_p4z
+!-----------------------------------------------------------------------
+   e13c_calz  =  2.0      ! C13 microzoo calcification fractionation
+   e15n_ex    =  6.0      ! N15 microzoo excretion fractionation
+   e15n_in    =  -1.0     ! N15 microzoo ingestion fractionation
+   e18oxy_zoo = 20.0      ! O18 microzoo respiration fractionation
+/
+!-----------------------------------------------------------------------
+&namp5zzoo     !   parameters for microzooplankton
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&nampisfer     !   parameters for iron chemistry
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------  
+&nampisrem     !   parameters for remineralization
+!-----------------------------------------------------------------------
+   mu_aoa    =  0.5       ! Growth rate of ammonia-oxidising archaea
+   kaoanh4   =  0.1E-6    ! NH4 half-saturation constant for AOA
+   kaoafer   =  0.00E-9   ! Fer half-saturation constant for AOA
+   kaoapar   =  0.75      ! PAR half-saturation constant for AOA
+   kaoaph    =  8.0       ! pH below which pH becomes limiting to ammonia oxidation
+   mu_nob    =  0.15      ! Growth rate of nitrite-oxidising bacteria
+   knobno2   =  0.10E-6   ! NO2 half-saturation constant for NOB
+   knobfer   =  0.36E-9   ! Fer half-saturation constant for NOB
+   knobpar   =  0.75      ! PAR half-saturation constant for NOB
+   ranammox  =  5.0E-5    ! Max rate of anammox (per day)
+   e15n_nar  = 26.6       ! N15 fractionation - nitrate reductase
+   e15n_nir  = 15.0       ! N15 fractionation - nitrite reductase
+   e15n_amo  = 22.0       ! N15 fractionation - ammonia oxidation
+   e15n_nio  = -10.0      ! N15 fractionation - nitrite oxidation
+   e15n_amm  = 0.0        ! N15 fractionation - ammonification
+   e15n_xamo = 22.0       ! N15 fractionation - ammonia oxidation (anammox)
+   e15n_xnir = 15.0       ! N15 fractionation - nitrite reduction (anammox)
+   e15n_xnio = -10.0      ! N15 fractionation - nitrite oxidation (anammox)
+   e18o_nar  = 26.6       ! O18 fractionation - nitrate reductase
+   e18o_nir  = 15.0       ! O18 fractionation - nitrite reductase
+   e18o_o2_h2o = 20.0     ! O18 fractionation - O incorporation (O2 + H2O)
+   e18o_h2o_2  = 10.      ! O18 fractionation - O incorporation (O2)
+   e18o_no2    = -6.5     ! O18 fractionation - O selection during nitrite oxidation
+   e18o_xnir = 15.0       ! O18 fractionation - nitrite reduction (anammox)
+   e18o_xnio = -10.0      ! O18 fractionation - nitrite oxidation (anammox)
+   e18oxy_res= 20.0       ! O18 fractionation (O2) - bacterial aerobic respiration
+   e18oxy_amo= 20.0       ! O18 fractionation (O2) - bacterial/archaeal ammonia oxidation
+   e18oxy_nio= 20.0       ! O18 fractionation (O2) - bacterial nitrite oxidation
+   fb_h2ono2 = 0.03      ! fraction biotic O-atom exchange NO2-H2O
+   ln_newnitr=  .true.    ! New nitrification parameterisation?
+   ln_munitrvar=  .true.    ! Variable growth rate of AOA
+/
+!-----------------------------------------------------------------------
+&nampispoc     !   parameters for organic particles
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&nampiscal     !   parameters for Calcite chemistry
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&nampissbc     !   parameters for inputs deposition
+!-----------------------------------------------------------------------
+   sn_ndepo    = 'Ndep',    -12            , 'NDEP'        ,  .false.     , .true. , 'yearly'  , ''       , ''    , ''
+   sn_senexp   = 'temp',     -1         , 'votemper'    ,  .true.      , .true. , 'yearly'  , ''       , ''    , ''
+!
+   ln_senexp   =  .false.  ! boolean for reading in data for sensitivity experiment
+   d13c_rivdic =  0.0      ! d13c river dic
+   d13c_rivdoc =  -28.0    ! d13c river doc
+   d13c_fix    =  -13.0    ! d13c N2 fixation
+   e15n_ben    =  3.0      ! N15 fractionation - benthic denitrification
+   e15n_amm    =  0.0      ! N15 fractionation - ammonification
+   d15n_fix    = -1.0      ! delta15N signature of N2 fixation
+   d15n_riv    =  2.0      ! delta15N signature of NO3 river input
+   d15n_dep    = -4.0      ! delta15N signature of atmospheric deposition
+   e18o_ben    =  3.0      ! O18 fractionation - benthic denitrification
+   d18o_riv    =  2.0      ! delta18O signature of NO3 river input
+   d18o_dep    = -4.0      ! delta18O signature of atmospheric deposition
+   e18oxy_ben  =  3.0      ! O18 fractionation - benthic respiration
+/
+!-----------------------------------------------------------------------
+&nampislig     !   Namelist parameters for ligands, nampislig
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&nampisice     !   Prescribed sea ice tracers
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&nampisdmp     !   Damping 
+!-----------------------------------------------------------------------
+   ln_pisdmp    =  .true.    !  Relaxation tracers?
+   nn_pisdmp    =  1460       !  Frequency of Relaxation
+   nn_n15min    =  -100.0      !  Minimum possible value of d15N
+   nn_n15max    =  100.0       !  Maximum possible value of d15N
+   nn_o18min    =  -100.0      !  minimum possible value of d18O
+   nn_o18max    =  100.0       !  maximum possible value of d18O
+
+/
+!-----------------------------------------------------------------------
+&nampismass    !   Mass conservation
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namlobphy     !   biological parameters for phytoplankton
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namlobnut     !   biological parameters for nutrients
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namlobzoo     !   biological parameters for zooplankton
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namlobdet     !   biological parameters for detritus
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namlobdom     !   biological parameters for DOM
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namlobsed     !   parameters from aphotic layers to sediment
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namlobrat     !   general coefficients
+!-----------------------------------------------------------------------
+/
+!-----------------------------------------------------------------------
+&namlobopt     !   optical parameters
+!-----------------------------------------------------------------------
+/

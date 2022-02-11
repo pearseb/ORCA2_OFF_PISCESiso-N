@@ -464,13 +464,13 @@ CONTAINS
                     !   0 --> Popp et al. (1989) parameterisation
                     !   1 --> Laws et al. (1995) parameterisation
                     IF ( c13_frac == 0 ) THEN
-                      ze13cprod1(ji,jj,jk) = ( 17.0*log10(zh2co3(ji,jj,jk)*1e6) + 3.4 )
-                      ze13cprod2(ji,jj,jk) = ( 17.0*log10(zh2co3(ji,jj,jk)*1e6) + 3.4 )
+                      ze13cprod1(ji,jj,jk) = max(0.0, ( 17.0*log10(zh2co3(ji,jj,jk)*1e6) - 3.4 ) )
+                      ze13cprod2(ji,jj,jk) = max(0.0, ( 17.0*log10(zh2co3(ji,jj,jk)*1e6) - 3.4 ) )
                     ELSEIF ( c13_frac == 1 ) THEN
-                      ze13cprod1(ji,jj,jk) = ( (86400 * zprorcan(ji,jj,jk)) / (trb(ji,jj,jk,jpphy) + rtrn) /  &
-                      &             ( rfact2 * (zh2co3(ji,jj,jk)/1025*1e9 + rtrn)) - 0.371 ) / (-0.015)
-                      ze13cprod2(ji,jj,jk) = ( (86400 * zprorcad(ji,jj,jk)) / (trb(ji,jj,jk,jpdia) + rtrn) /  &
-                      &             ( rfact2 * (zh2co3(ji,jj,jk)/1025*1e9 + rtrn)) - 0.371 ) / (-0.015)
+                      ze13cprod1(ji,jj,jk) = max(0.0, ( (86400 * zprorcan(ji,jj,jk)) / (trb(ji,jj,jk,jpphy) + rtrn) /  &
+                      &             ( rfact2 * (zh2co3(ji,jj,jk)/1025*1e9 + rtrn)) - 0.371 ) / (-0.015) )
+                      ze13cprod2(ji,jj,jk) = max(0.0, ( (86400 * zprorcad(ji,jj,jk)) / (trb(ji,jj,jk,jpdia) + rtrn) /  &
+                      &             ( rfact2 * (zh2co3(ji,jj,jk)/1025*1e9 + rtrn)) - 0.371 ) / (-0.015) )
                     ENDIF
 
                     ! Mulitply the biological fractionation (CO2(aq) --> POC) by the equilibrium
