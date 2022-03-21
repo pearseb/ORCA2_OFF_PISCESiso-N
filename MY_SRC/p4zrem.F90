@@ -348,7 +348,7 @@ CONTAINS
                ! New nitrification parameterisations
                if ( ln_newnitr ) then
                  ! Ammonia oxidation
-                 zph = min(14., max(0., (-1)*log10(hi(ji,jj,jk) + rtrn) ) )
+                 zph = min(14., max(0., (-1)*log10(max(hi(ji,jj,jk),rtrn)) ))
                  zlimaoap(ji,jj,jk) = min(1., 10**(zph - 9.3) / 10**(kaoaph - 9.3) ) * tmask(ji,jj,jk)
                  zlimaoan(ji,jj,jk) = (trb(ji,jj,jk,jpnh4)+rtrn) / ( trb(ji,jj,jk,jpnh4) + kaoanh4 + rtrn)
                  zlimaoaf(ji,jj,jk) = (trb(ji,jj,jk,jpfer)+rtrn) / ( trb(ji,jj,jk,jpfer) + kaoafer + rtrn)
